@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Generic, Protocol, TypeVar, runtime_checkable
 
 import jax
+import numpy as np
+import numpy.typing as npt
 from typing_extensions import Self
 
 from rydopt.types import HamiltonianFunction, ParamsFloatLike
@@ -136,6 +138,24 @@ class PulseAnsatzLike(Protocol):
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         """Evaluate detuning, phase, and Rabi pulse functions at time samples ``t``."""
         ...
+
+
+class ParamsLike(Protocol):
+    """Protocol defining a common interface for pulse parameter containers.
+
+    This interface abstracts over different parameter representations
+    (e.g., GenericPulseParams and PulseParams) so that optimization
+    routines can operate on them uniformly without needing to distinguish
+    between concrete types.
+
+    Implementations must support flattening to a 1D array, reconstructing
+    from that flattened representation, and providing structural
+    information about how parameters are partitioned.
+    """
+
+    def ravel(self) -> npt.NDArray[np.float64]: ...
+    def unravel(self, flat: npt.NDArray[np.float64]) -> ParamsLike: ...
+    def split_indices(self) -> tuple[int, ...]: ...
 
 
 G = TypeVar("G", bound=Evolvable)
