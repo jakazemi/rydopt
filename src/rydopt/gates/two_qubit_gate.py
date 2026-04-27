@@ -12,7 +12,9 @@ from rydopt.gates.subsystem_hamiltonians import (
     H_2_atoms,
     H_k_atoms_perfect_blockade,
 )
-from rydopt.types import HamiltonianFunction
+from rydopt.protocols import PulseAnsatzLike
+from rydopt.simulation.fidelity import average_gate_fidelity, process_fidelity
+from rydopt.types import FidelityType, HamiltonianFunction, PulseParams
 
 
 class TwoQubitGate:
@@ -44,11 +46,19 @@ class TwoQubitGate:
 
     """
 
-    def __init__(self, phi: float | None, theta: float | None, Vnn: float, decay: float = 0.0) -> None:
+    def __init__(
+        self,
+        phi: float | None,
+        theta: float | None,
+        Vnn: float,
+        decay: float = 0.0,
+        fidelity_type: FidelityType = "process",
+    ) -> None:
         self._phi = phi
         self._theta = theta
         self._Vnn = Vnn
         self._decay = decay
+        self._fidelity_type = fidelity_type
 
     def with_decay(self, decay: float) -> Self:
         r"""Creates a copy of the gate with a new decay strength.
@@ -163,6 +173,14 @@ class TwoQubitGate:
         )
 
         return jnp.abs(jnp.vdot(targeted_gate, obtained_gate)) ** 2 / len(targeted_gate) ** 2
+
+    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParams, tol: float = 1e-7) -> jax.Array:
+        """Calculate the configured fidelity metric for the given pulse."""
+        if self._fidelity_type == "process":
+            return process_fidelity(self, pulse, params, tol)
+        if self._fidelity_type == "average_gate":
+            return average_gate_fidelity(self, pulse, params, tol)
+        raise ValueError(f"Unsupported fidelity type: {self._fidelity_type}")
 
     def rydberg_time(self, expectation_values_of_basis_states: tuple[jax.Array, ...]) -> jax.Array:
         r"""Given the expectation values of Rydberg populations for each basis state, integrated over the full

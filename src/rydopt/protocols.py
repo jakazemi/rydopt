@@ -39,7 +39,16 @@ class Evolvable(Protocol):
 
 
 @runtime_checkable
-class GateSystem(Evolvable, Protocol):
+class Optimizable(Protocol):
+    """Minimal interface for a system that exposes a pulse fidelity objective."""
+
+    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParams, tol: float) -> jax.Array:
+        """Calculate the fidelity for the given pulse and parameters."""
+        ...
+
+
+@runtime_checkable
+class GateSystem(Evolvable, Optimizable, Protocol):
     """Interface for :ref:`gates <gates>` that can be optimized for process fidelity.
     The interface is derived from :class:`Evolvable`. Additionally, methods are present for
     calculating fidelities from time-evolved basis states.
