@@ -18,11 +18,8 @@ import numpy.typing as npt
 import optax
 from tqdm.auto import tqdm
 
-from rydopt.protocols import GateSystem, PulseAnsatzLike
-from rydopt.simulation.fidelity import average_gate_fidelity, process_fidelity
+from rydopt.protocols import Optimizable, PulseAnsatzLike
 from rydopt.types import FixedPulseParams, PulseParams
-
-FidelityType = Literal["process", "average_gate"]
 
 tqdm.monitor_interval = 0
 
@@ -209,22 +206,20 @@ def _unravel_jax(flat: jax.Array, split_indices: tuple[int, ...]) -> PulseParams
 
 
 def _make_infidelity(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     params_full: npt.NDArray[np.float64],
     params_trainable_indices: npt.NDArray[np.intp],
     params_split_indices: tuple[int, ...],
     tol: float,
-    fidelity_type: FidelityType = "process",
 ) -> Callable[[jax.Array], jax.Array]:
     full = jnp.asarray(params_full)
     trainable_indices = jnp.asarray(params_trainable_indices)
-    fidelity_fn = process_fidelity if fidelity_type == "process" else average_gate_fidelity
 
     def infidelity(params_trainable: jax.Array) -> jax.Array:
         params = full.at[trainable_indices].set(params_trainable)
         params_tuple = _unravel_jax(params, params_split_indices)
-        return jnp.abs(1 - fidelity_fn(gate, pulse, params_tuple, tol))
+        return jnp.abs(1 - gate.fidelity(pulse, params_tuple, tol))
 
     return infidelity
 
@@ -367,7 +362,7 @@ _adam_scan: Callable[..., AdamScanReturn] = cast(
 
 
 def _adam_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     params_full: npt.NDArray[np.float64],
     params_trainable: npt.NDArray[np.float64],
@@ -381,7 +376,6 @@ def _adam_optimize(
     device_idx: int | None,
     progress_queue: _ProgressQueue | None,
     return_history: bool,
-    fidelity_type: FidelityType = "process",
 ) -> tuple[
     npt.NDArray[np.float64],
     npt.NDArray[np.float64],
@@ -403,7 +397,6 @@ def _adam_optimize(
             params_trainable_indices,
             params_split_indices,
             tol,
-            fidelity_type,
         )
 
         if trainable.ndim == 1:
@@ -451,7 +444,7 @@ def _adam_optimize(
 
 @overload
 def optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     initial_params: PulseParams,
     fixed_initial_params: FixedPulseParams | None = ...,
@@ -459,7 +452,6 @@ def optimize(
     num_steps: int = ...,
     learning_rate: float = ...,
     tol: float = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[True],
     verbose: bool = ...,
 ) -> OptimizationResult[PulseParams, float, npt.NDArray[np.float64]]: ...
@@ -467,7 +459,7 @@ def optimize(
 
 @overload
 def optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     initial_params: PulseParams,
     fixed_initial_params: FixedPulseParams | None = ...,
@@ -475,14 +467,13 @@ def optimize(
     num_steps: int = ...,
     learning_rate: float = ...,
     tol: float = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[False] = False,
     verbose: bool = ...,
 ) -> OptimizationResult[PulseParams, float, None]: ...
 
 
 def optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     initial_params: PulseParams,
     fixed_initial_params: FixedPulseParams | None = None,
@@ -490,7 +481,6 @@ def optimize(
     num_steps: int = 1000,
     learning_rate: float = 0.05,
     tol: float = 1e-7,
-    fidelity_type: FidelityType = "process",
     return_history: bool = False,
     verbose: bool = False,
 ) -> OptimizationResult[PulseParams, float, npt.NDArray[np.float64] | None]:
@@ -528,8 +518,6 @@ def optimize(
         num_steps: number of optimization steps
         learning_rate: optimizer learning rate hyperparameter
         tol: target gate infidelity, also sets the ODE solver tolerance
-        fidelity_type: which fidelity metric to use; ``"process"`` (default) uses
-            process fidelity, ``"average_gate"`` uses average gate fidelity
         return_history: whether or not to return the cost history of the optimization
         verbose: whether detail information is printed or only a progress bar is shown
 
@@ -572,7 +560,6 @@ def optimize(
                 None,
                 progress_queue,
                 return_history,
-                fidelity_type,
             )
         )
     runtime = time.perf_counter() - t0
@@ -603,7 +590,7 @@ def optimize(
 
 @overload
 def multi_start_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     min_initial_params: PulseParams,
     max_initial_params: PulseParams,
@@ -616,7 +603,6 @@ def multi_start_optimize(
     min_converged_initializations: int | None = ...,
     num_processes: int | None = ...,
     seed: int | None = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[True],
     return_all: Literal[True],
     verbose: bool = ...,
@@ -625,7 +611,7 @@ def multi_start_optimize(
 
 @overload
 def multi_start_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     min_initial_params: PulseParams,
     max_initial_params: PulseParams,
@@ -638,7 +624,6 @@ def multi_start_optimize(
     min_converged_initializations: int | None = ...,
     num_processes: int | None = ...,
     seed: int | None = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[False] = False,
     return_all: Literal[True],
     verbose: bool = ...,
@@ -647,7 +632,7 @@ def multi_start_optimize(
 
 @overload
 def multi_start_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     min_initial_params: PulseParams,
     max_initial_params: PulseParams,
@@ -660,7 +645,6 @@ def multi_start_optimize(
     min_converged_initializations: int | None = ...,
     num_processes: int | None = ...,
     seed: int | None = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[True],
     return_all: Literal[False] = False,
     verbose: bool = ...,
@@ -669,7 +653,7 @@ def multi_start_optimize(
 
 @overload
 def multi_start_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     min_initial_params: PulseParams,
     max_initial_params: PulseParams,
@@ -682,7 +666,6 @@ def multi_start_optimize(
     min_converged_initializations: int | None = ...,
     num_processes: int | None = ...,
     seed: int | None = ...,
-    fidelity_type: FidelityType = ...,
     return_history: Literal[False] = False,
     return_all: Literal[False] = False,
     verbose: bool = ...,
@@ -690,7 +673,7 @@ def multi_start_optimize(
 
 
 def multi_start_optimize(
-    gate: GateSystem,
+    gate: Optimizable,
     pulse: PulseAnsatzLike,
     min_initial_params: PulseParams,
     max_initial_params: PulseParams,
@@ -703,7 +686,6 @@ def multi_start_optimize(
     min_converged_initializations: int | None = None,
     num_processes: int | None = None,
     seed: int | None = None,
-    fidelity_type: FidelityType = "process",
     return_history: bool = False,
     return_all: bool = False,
     verbose: bool = False,
@@ -753,8 +735,6 @@ def multi_start_optimize(
         min_converged_initializations: number of runs that must reach ``tol`` for the optimization to stop
         num_processes: number of parallel processes
         seed: seed for the random number generator
-        fidelity_type: which fidelity metric to use; ``"process"`` (default) uses
-            process fidelity, ``"average_gate"`` uses average gate fidelity
         return_history: whether or not to return the cost history of the optimization
         return_all: whether or not to return all optimization results
         verbose: whether detail information is printed or only a progress bar is shown
@@ -839,7 +819,6 @@ def multi_start_optimize(
                     None,
                     progress_queue,
                     return_history,
-                    fidelity_type,
                 )
             )
 
@@ -877,7 +856,6 @@ def multi_start_optimize(
                         device_idx if use_one_process_per_device else None,
                         progress_queue,
                         return_history,
-                        fidelity_type,
                     )
                     for device_idx, p in enumerate(chunks)
                 ],
