@@ -5,7 +5,7 @@ from typing import Protocol, runtime_checkable
 import jax
 from typing_extensions import Self
 
-from rydopt.types import HamiltonianFunction, PulseParams, PulseParamsLike
+from rydopt.types import HamiltonianFunction, PulseParamsLike
 
 
 class Evolvable(Protocol):
@@ -42,7 +42,7 @@ class Evolvable(Protocol):
 class Optimizable(Protocol):
     """Minimal interface for a system that exposes a pulse fidelity objective."""
 
-    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParams, tol: float) -> jax.Array:
+    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float) -> jax.Array:
         """Calculate the fidelity for the given pulse and parameters."""
         ...
 

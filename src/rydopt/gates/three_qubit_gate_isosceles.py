@@ -17,7 +17,7 @@ from rydopt.gates.subsystem_hamiltonians import (
 )
 from rydopt.protocols import PulseAnsatzLike
 from rydopt.simulation.fidelity import average_gate_fidelity, process_fidelity
-from rydopt.types import FidelityType, HamiltonianFunction, PulseParams
+from rydopt.types import FidelityType, HamiltonianFunction, PulseParamsLike
 
 
 class ThreeQubitGateIsosceles:
@@ -297,7 +297,7 @@ class ThreeQubitGateIsosceles:
 
         return jnp.abs(jnp.vdot(targeted_gate, obtained_gate)) ** 2 / len(targeted_gate) ** 2
 
-    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParams, tol: float = 1e-7) -> jax.Array:
+    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7) -> jax.Array:
         """Calculate the configured fidelity metric for the given pulse."""
         if self._fidelity_type == "process":
             return process_fidelity(self, pulse, params, tol)

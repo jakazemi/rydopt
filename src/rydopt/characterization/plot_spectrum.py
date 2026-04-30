@@ -8,12 +8,12 @@ import numpy as np
 from scipy.signal.windows import tukey
 
 from rydopt.protocols import PulseAnsatzLike
-from rydopt.types import PulseParams
+from rydopt.types import PulseParamsLike
 
 
 def plot_spectrum(
     pulse: PulseAnsatzLike,
-    params: PulseParams,
+    params: PulseParamsLike,
     *,
     plot_detuning: bool = True,
     plot_phase: bool = True,

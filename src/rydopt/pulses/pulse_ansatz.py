@@ -7,16 +7,7 @@ import jax.numpy as jnp
 from numpy.typing import ArrayLike
 
 from rydopt.pulses.ansatz_functions import PulseAnsatzFunction
-from rydopt.types import PulseParamsLike
-
-
-def _flatten_params(params: PulseParamsLike) -> jax.Array:
-    if isinstance(params, tuple):
-        first, *rest = params
-        first_arr = jnp.asarray(first)
-        first_arr = first_arr[jnp.newaxis] if first_arr.ndim == 0 else first_arr[..., jnp.newaxis]
-        return jnp.concatenate([first_arr, *(jnp.asarray(part) for part in rest)], axis=-1)
-    return jnp.ravel(jnp.asarray(params))
+from rydopt.types import PulseParamsLike, _ravel, _unravel
 
 
 class _FixedConstant(PulseAnsatzFunction):
@@ -74,19 +65,19 @@ class PulseAnsatz:
     def param_counts(self) -> tuple[int, int, int]:
         return self.detuning_ansatz.num_params, self.phase_ansatz.num_params, self.rabi_ansatz.num_params
 
-    def _unpack_params(self, params: PulseParamsLike) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        flat_params = _flatten_params(params)
+    def _unpack_params(self, params: PulseParamsLike) -> tuple[jax.Array, ...]:
+        flat_params = _ravel(params, dtype="float", backend="jax")
         detuning_count, phase_count, rabi_count = self.param_counts
 
         expected_size = 1 + detuning_count + phase_count + rabi_count
         if int(flat_params.shape[-1]) != expected_size:
             raise ValueError(f"PulseAnsatz expects {expected_size} packed parameters, got {int(flat_params.shape[-1])}")
 
-        return (
-            flat_params[..., 0],
-            flat_params[..., 1 : 1 + detuning_count],
-            flat_params[..., 1 + detuning_count : 1 + detuning_count + phase_count],
-            flat_params[..., 1 + detuning_count + phase_count :],
+        return _unravel(
+            flat_params,
+            (1, 1 + detuning_count, 1 + detuning_count + phase_count),
+            dtype="float",
+            backend="jax",
         )
 
     def evaluate_pulse_functions(
@@ -210,8 +201,8 @@ class TwoPhotonPulseAnsatz:
     def upper_param_counts(self) -> tuple[int, int, int]:
         return self.upper_transition.param_counts
 
-    def _unpack_params(self, params: PulseParamsLike) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        flat_params = _flatten_params(params)
+    def _unpack_params(self, params: PulseParamsLike) -> tuple[jax.Array, ...]:
+        flat_params = _ravel(params, dtype="float", backend="jax")
         lower_detuning_count, lower_phase_count, lower_rabi_count = self.lower_param_counts
         upper_detuning_count, upper_phase_count, upper_rabi_count = self.upper_param_counts
         detuning_count = lower_detuning_count + upper_detuning_count
@@ -224,34 +215,17 @@ class TwoPhotonPulseAnsatz:
                 f"TwoPhotonPulseAnsatz expects {expected_size} packed parameters, got {int(flat_params.shape[-1])}"
             )
 
-        duration = flat_params[..., 0]
-        detuning_stop = 1 + detuning_count
-        phase_stop = detuning_stop + phase_count
-
-        return (
-            duration,
-            flat_params[..., 1:detuning_stop],
-            flat_params[..., detuning_stop:phase_stop],
-            flat_params[..., phase_stop:],
+        return _unravel(
+            flat_params,
+            (1, 1 + detuning_count, 1 + detuning_count + phase_count),
+            dtype="float",
+            backend="jax",
         )
 
     @staticmethod
     def _split_1d(packed_params: ArrayLike, lower_count: int) -> tuple[jax.Array, jax.Array]:
         packed_params = jnp.asarray(packed_params)
         return packed_params[..., :lower_count], packed_params[..., lower_count:]
-
-    def _unpack_transition_params(self, params: PulseParamsLike) -> tuple[jax.Array, jax.Array]:
-        duration, detuning_params, phase_params, rabi_params = self._unpack_params(params)
-
-        lower_detuning_count, lower_phase_count, lower_rabi_count = self.lower_param_counts
-
-        lower_detuning_params, upper_detuning_params = self._split_1d(detuning_params, lower_detuning_count)
-        lower_phase_params, upper_phase_params = self._split_1d(phase_params, lower_phase_count)
-        lower_rabi_params, upper_rabi_params = self._split_1d(rabi_params, lower_rabi_count)
-
-        lower_params = _flatten_params((duration, lower_detuning_params, lower_phase_params, lower_rabi_params))
-        upper_params = _flatten_params((duration, upper_detuning_params, upper_phase_params, upper_rabi_params))
-        return lower_params, upper_params
 
     def evaluate_pulse_functions(
         self, t: float | jax.Array, params: PulseParamsLike
@@ -267,10 +241,21 @@ class TwoPhotonPulseAnsatz:
             Tuple ``(detuning_1, detuning_r, phase, rabi)``
 
         """
-        lower_params, upper_params = self._unpack_transition_params(params)
+        duration, detuning_params, phase_params, rabi_params = self._unpack_params(params)
 
-        _, lower_detuning, lower_phase, lower_rabi = self.lower_transition.evaluate_pulse_functions(t, lower_params)
-        _, upper_detuning, upper_phase, upper_rabi = self.upper_transition.evaluate_pulse_functions(t, upper_params)
+        lower_detuning_count, lower_phase_count, lower_rabi_count = self.lower_param_counts
+
+        lower_detuning_params, upper_detuning_params = self._split_1d(detuning_params, lower_detuning_count)
+        lower_phase_params, upper_phase_params = self._split_1d(phase_params, lower_phase_count)
+        lower_rabi_params, upper_rabi_params = self._split_1d(rabi_params, lower_rabi_count)
+
+        lower_detuning = self.lower_transition.detuning_ansatz(t, duration, lower_detuning_params)
+        lower_phase = self.lower_transition.phase_ansatz(t, duration, lower_phase_params)
+        lower_rabi = self.lower_transition.rabi_ansatz(t, duration, lower_rabi_params)
+
+        upper_detuning = self.upper_transition.detuning_ansatz(t, duration, upper_detuning_params)
+        upper_phase = self.upper_transition.phase_ansatz(t, duration, upper_phase_params)
+        upper_rabi = self.upper_transition.rabi_ansatz(t, duration, upper_rabi_params)
 
         effective_rabi = lower_rabi * upper_rabi / (2.0 * (lower_detuning + 0.5j * self.decay))
         effective_phase = lower_phase + upper_phase

@@ -19,7 +19,7 @@ import optax
 from tqdm.auto import tqdm
 
 from rydopt.protocols import Optimizable, PulseAnsatzLike
-from rydopt.types import FixedPulseParams, PulseParams
+from rydopt.types import FixedPulseParamsLike, PulseParamsLike, _ravel, _unravel
 
 tqdm.monitor_interval = 0
 
@@ -186,23 +186,10 @@ class _ProgressBar:
 # -----------------------------------------------------------------------------
 
 
-def _spec(nested: PulseParams | FixedPulseParams) -> tuple[int, ...]:
-    return tuple(np.cumsum([len(p) if isinstance(p, Sized) else 1 for p in nested])[:-1].tolist())
-
-
-def _ravel(nested: PulseParams | FixedPulseParams) -> npt.NDArray[np.float64]:
-    first, *rest = nested
-    return np.concatenate([(first,), *list(rest)])
-
-
-def _unravel(flat: npt.NDArray[np.float64], split_indices: tuple[int, ...]) -> PulseParams | FixedPulseParams:
-    parts = np.split(flat, split_indices)
-    return (parts[0][0], *tuple(parts[1:]))  # type: ignore[return-value]
-
-
-def _unravel_jax(flat: jax.Array, split_indices: tuple[int, ...]) -> PulseParams | FixedPulseParams:
-    parts = jnp.split(flat, split_indices)
-    return (parts[0][0], *tuple(parts[1:]))  # type: ignore[return-value]
+def _spec(params: PulseParamsLike | FixedPulseParamsLike) -> tuple[int, ...]:
+    if isinstance(params, tuple):
+        return tuple(np.cumsum([len(p) if isinstance(p, Sized) else 1 for p in params])[:-1].tolist())
+    return ()
 
 
 def _make_infidelity(
@@ -210,7 +197,6 @@ def _make_infidelity(
     pulse: PulseAnsatzLike,
     params_full: npt.NDArray[np.float64],
     params_trainable_indices: npt.NDArray[np.intp],
-    params_split_indices: tuple[int, ...],
     tol: float,
 ) -> Callable[[jax.Array], jax.Array]:
     full = jnp.asarray(params_full)
@@ -218,13 +204,12 @@ def _make_infidelity(
 
     def infidelity(params_trainable: jax.Array) -> jax.Array:
         params = full.at[trainable_indices].set(params_trainable)
-        params_tuple = _unravel_jax(params, params_split_indices)
-        return jnp.abs(1 - gate.fidelity(pulse, params_tuple, tol))
+        return jnp.abs(1 - gate.fidelity(pulse, params, tol))
 
     return infidelity
 
 
-def _print_gate(title: str, params: PulseParams | FixedPulseParams, infidelity: float, tol: float) -> None:
+def _print_gate(title: str, params: PulseParamsLike, infidelity: float, tol: float) -> None:
     print(f"\n{title}")
     if abs(float(infidelity)) < tol:
         print("> infidelity <= tol")
@@ -367,7 +352,6 @@ def _adam_optimize(
     params_full: npt.NDArray[np.float64],
     params_trainable: npt.NDArray[np.float64],
     params_trainable_indices: npt.NDArray[np.intp],
-    params_split_indices: tuple,
     num_steps: int,
     min_converged_initializations: int,
     learning_rate: float,
@@ -395,7 +379,6 @@ def _adam_optimize(
             pulse,
             params_full,
             params_trainable_indices,
-            params_split_indices,
             tol,
         )
 
@@ -446,44 +429,44 @@ def _adam_optimize(
 def optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
     tol: float = ...,
     return_history: Literal[True],
     verbose: bool = ...,
-) -> OptimizationResult[PulseParams, float, npt.NDArray[np.float64]]: ...
+) -> OptimizationResult[PulseParamsLike, float, npt.NDArray[np.float64]]: ...
 
 
 @overload
 def optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
     tol: float = ...,
     return_history: Literal[False] = False,
     verbose: bool = ...,
-) -> OptimizationResult[PulseParams, float, None]: ...
+) -> OptimizationResult[PulseParamsLike, float, None]: ...
 
 
 def optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = None,
+    initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = None,
     *,
     num_steps: int = 1000,
     learning_rate: float = 0.05,
     tol: float = 1e-7,
     return_history: bool = False,
     verbose: bool = False,
-) -> OptimizationResult[PulseParams, float, npt.NDArray[np.float64] | None]:
+) -> OptimizationResult[PulseParamsLike, float, npt.NDArray[np.float64] | None]:
     r"""Function that optimizes an initial parameter guess in order to realize the desired gate.
 
     Example:
@@ -526,12 +509,12 @@ def optimize(
 
     """
     split_indices = _spec(initial_params)
-    params_full = _ravel(initial_params)
+    params_full = _ravel(initial_params, dtype="float")
 
     if fixed_initial_params is None:
         trainable_mask = np.ones_like(params_full, dtype=bool)
     else:
-        trainable_mask = ~_ravel(fixed_initial_params).astype(bool)
+        trainable_mask = ~_ravel(fixed_initial_params, dtype="bool")
     trainable_indices = np.nonzero(trainable_mask)[0]
 
     params_trainable = params_full[trainable_indices]
@@ -551,7 +534,6 @@ def optimize(
                 params_full,
                 params_trainable,
                 trainable_indices,
-                split_indices,
                 num_steps,
                 1,
                 learning_rate,
@@ -567,7 +549,7 @@ def optimize(
     final_full = params_full.copy()
     final_full[trainable_indices] = final_params_trainable
 
-    final_params = _unravel(final_full, split_indices)
+    final_params = _unravel(final_full, split_indices, dtype="float")
     num_converged = 1 if final_infidelity <= tol else 0
 
     # --- Logging ---
@@ -578,7 +560,7 @@ def optimize(
     return OptimizationResult(
         params=final_params,
         infidelity=float(final_infidelity),
-        duration=final_params[0],
+        duration=float(final_params[0]),
         infidelity_history=infidelity_history,
         duration_history=duration_history,
         grad_norm_history=grad_norm_history,
@@ -592,9 +574,9 @@ def optimize(
 def multi_start_optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    min_initial_params: PulseParams,
-    max_initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    min_initial_params: PulseParamsLike,
+    max_initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
@@ -606,16 +588,16 @@ def multi_start_optimize(
     return_history: Literal[True],
     return_all: Literal[True],
     verbose: bool = ...,
-) -> OptimizationResult[list[PulseParams], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
+) -> OptimizationResult[list[PulseParamsLike], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
 
 
 @overload
 def multi_start_optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    min_initial_params: PulseParams,
-    max_initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    min_initial_params: PulseParamsLike,
+    max_initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
@@ -627,16 +609,16 @@ def multi_start_optimize(
     return_history: Literal[False] = False,
     return_all: Literal[True],
     verbose: bool = ...,
-) -> OptimizationResult[list[PulseParams], npt.NDArray[np.float64], None]: ...
+) -> OptimizationResult[list[PulseParamsLike], npt.NDArray[np.float64], None]: ...
 
 
 @overload
 def multi_start_optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    min_initial_params: PulseParams,
-    max_initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    min_initial_params: PulseParamsLike,
+    max_initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
@@ -648,16 +630,16 @@ def multi_start_optimize(
     return_history: Literal[True],
     return_all: Literal[False] = False,
     verbose: bool = ...,
-) -> OptimizationResult[PulseParams, float, npt.NDArray[np.float64]]: ...
+) -> OptimizationResult[PulseParamsLike, float, npt.NDArray[np.float64]]: ...
 
 
 @overload
 def multi_start_optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    min_initial_params: PulseParams,
-    max_initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = ...,
+    min_initial_params: PulseParamsLike,
+    max_initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = ...,
     *,
     num_steps: int = ...,
     learning_rate: float = ...,
@@ -669,15 +651,15 @@ def multi_start_optimize(
     return_history: Literal[False] = False,
     return_all: Literal[False] = False,
     verbose: bool = ...,
-) -> OptimizationResult[PulseParams, float, None]: ...
+) -> OptimizationResult[PulseParamsLike, float, None]: ...
 
 
 def multi_start_optimize(
     gate: Optimizable,
     pulse: PulseAnsatzLike,
-    min_initial_params: PulseParams,
-    max_initial_params: PulseParams,
-    fixed_initial_params: FixedPulseParams | None = None,
+    min_initial_params: PulseParamsLike,
+    max_initial_params: PulseParamsLike,
+    fixed_initial_params: FixedPulseParamsLike | None = None,
     *,
     num_steps: int = 1000,
     learning_rate: float = 0.05,
@@ -690,7 +672,7 @@ def multi_start_optimize(
     return_all: bool = False,
     verbose: bool = False,
 ) -> OptimizationResult[
-    PulseParams | list[PulseParams], float | npt.NDArray[np.float64], npt.NDArray[np.float64] | None
+    PulseParamsLike | list[PulseParamsLike], float | npt.NDArray[np.float64], npt.NDArray[np.float64] | None
 ]:
     r"""Function that optimizes multiple random initial parameter guesses in order to realize the desired gate.
 
@@ -744,14 +726,14 @@ def multi_start_optimize(
 
     """
     split_indices = _spec(min_initial_params)
-    flat_min = _ravel(min_initial_params)
-    flat_max = _ravel(max_initial_params)
+    flat_min = _ravel(min_initial_params, dtype="float")
+    flat_max = _ravel(max_initial_params, dtype="float")
     params_full = flat_min.copy()
 
     if fixed_initial_params is None:
         trainable_mask = np.ones_like(flat_min, dtype=bool)
     else:
-        trainable_mask = ~_ravel(fixed_initial_params).astype(bool)
+        trainable_mask = ~_ravel(fixed_initial_params, dtype="bool")
         if not np.allclose(flat_min[~trainable_mask], flat_max[~trainable_mask]):
             raise ValueError(
                 "For fixed parameters, min_initial_params and max_initial_params must have identical values."
@@ -810,7 +792,6 @@ def multi_start_optimize(
                     params_full,
                     params_trainable,
                     trainable_indices,
-                    split_indices,
                     num_steps,
                     min_converged_initializations_local,
                     learning_rate,
@@ -847,7 +828,6 @@ def multi_start_optimize(
                         params_full,
                         p,
                         trainable_indices,
-                        split_indices,
                         num_steps,
                         min_converged_initializations_local,
                         learning_rate,
@@ -898,13 +878,13 @@ def multi_start_optimize(
 
     fastest_idx = converged[np.argmin(durations_converged)]
     fastest_infidelity = final_infidelities[fastest_idx]
-    fastest_params = _unravel(final_full[fastest_idx], split_indices)
+    fastest_params = _unravel(final_full[fastest_idx], split_indices, dtype="float")
 
     if num_converged > 1:
         # If multiple parameter sets converged, show slowest and fastest gate
         slowest_idx = converged[np.argmax(durations_converged)]
         slowest_infidelity = final_infidelities[slowest_idx]
-        slowest_params = _unravel(final_full[slowest_idx], split_indices)
+        slowest_params = _unravel(final_full[slowest_idx], split_indices, dtype="float")
 
         _print_gate("Slowest gate:", slowest_params, slowest_infidelity, tol)
         _print_gate("Fastest gate:", fastest_params, fastest_infidelity, tol)
@@ -926,7 +906,7 @@ def multi_start_optimize(
         duration_history_out = duration_history[:, sorter] if duration_history is not None else None
         grad_norm_history_out = grad_norm_history[:, sorter] if grad_norm_history is not None else None
         return OptimizationResult(
-            params=[_unravel(p, split_indices) for p in final_full_sorted],
+            params=[_unravel(p, split_indices, dtype="float") for p in final_full_sorted],
             infidelity=final_infidelities[sorter],
             duration=final_full_sorted[:, 0],
             infidelity_history=infidelity_history_out,
@@ -943,7 +923,7 @@ def multi_start_optimize(
     return OptimizationResult(
         params=fastest_params,
         infidelity=final_infidelities[fastest_idx],
-        duration=fastest_params[0],
+        duration=float(fastest_params[0]),
         infidelity_history=infidelity_history_out,
         duration_history=duration_history_out,
         grad_norm_history=grad_norm_history_out,
