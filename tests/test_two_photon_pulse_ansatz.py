@@ -20,9 +20,9 @@ def test_effective_controls() -> None:
         rabi_ansatz=ro.pulses.ConstSinCrab(3),
     )
 
-    lower_params = (duration, [-1.6, 0.4, -0.2], [0.7, -0.3], [2.2])
-    upper_params = (duration, [-0.5], [0.1], [1.4, 0.2, -0.1])
-    packed_params = (
+    lower_params = ro.pulses.PulseParams(duration, [-1.6, 0.4, -0.2], [0.7, -0.3], [2.2])
+    upper_params = ro.pulses.PulseParams(duration, [-0.5], [0.1], [1.4, 0.2, -0.1])
+    packed_params = ro.pulses.PulseParams(
         duration,
         np.array([*lower_params[1], *upper_params[1]]),
         np.array([*lower_params[2], *upper_params[2]]),
@@ -62,25 +62,20 @@ def test_two_photon_cz() -> None:
     )
     pulse = ro.pulses.TwoPhotonPulseAnsatz(lower_transition=lower, upper_transition=upper, decay=0)
 
-    initial_params = (7.6, [-50.0, 50.0], [1.8, -0.6], [10.0, 10.0])  # duration, detuning, phase, rabi
+    initial_params = ro.pulses.PulseParams(7.6, [-50.0, 50.0], [1.8, -0.6], [10.0, 10.0])
 
     # Parameters of the upper transition and Rabi frequencies are fixed
-    fixed_initial_params = (False, [False, True], [False, False], [True, True])
+    fixed_initial_params = ro.pulses.PulseParams(False, [False, True], [False, False], [True, True])
 
     result = ro.optimization.optimize(gate, pulse, initial_params, fixed_initial_params, num_steps=200, tol=1e-7)
 
-    ref = (
-        7.600019896010689,
-        [-49.92218101, 50],
-        [1.75873066, -0.61830304],
-        [10, 10],
-    )
-    assert all(np.allclose(x, y, rtol=1e-3) for x, y in zip(result.params, ref))
+    ref = np.array([7.600019896010689, -49.92218101, 50.0, 1.75873066, -0.61830304, 10.0, 10.0])
+    assert np.allclose(np.asarray(result.params), ref, rtol=1e-3)
 
 
 def test_average_gate_fidelity_qutip_comparison() -> None:
     # Parameters from test_two_photon_cz
-    params = (
+    params = ro.pulses.PulseParams(
         7.600019896010689,
         [-49.92218101, 50],
         [1.75873066, -0.61830304],
@@ -184,7 +179,7 @@ def test_average_gate_fidelity_qutip_comparison() -> None:
     Omega_sc = np.sqrt(alpha) * Omega_orig
 
     # Rydopt fidelity is unchanged (same effective Hamiltonian)
-    params_sc = (duration, [Delta_l_sc, Delta_u_sc], list(params[2]), [Omega_sc, Omega_sc])
+    params_sc = ro.pulses.PulseParams(duration, [Delta_l_sc, Delta_u_sc], list(params[2]), [Omega_sc, Omega_sc])
     rydopt_fid_sc = float(ro.simulation.average_gate_fidelity(gate, pulse, params_sc))
     assert abs(rydopt_fid_sc - rydopt_fid) < 1e-7
 

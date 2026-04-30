@@ -39,9 +39,9 @@ autodoc_default_options = {
 }
 
 autodoc_type_aliases = {
-    "ParamsLike": "ParamsLike",
+    "ParamsFloatLike": "ParamsFloatLike",
     "PulseAnsatz": "PulseAnsatz",
-    "FixedParamsLike": "FixedParamsLike",
+    "ParamsBoolLike": "ParamsBoolLike",
     "ArrayLike": "ArrayLike",
     "PulseAnsatzFunction": "PulseAnsatzFunction",
     "PulseFunction": "PulseFunction",

@@ -26,7 +26,7 @@ def test_cccz() -> None:
     )
 
     # Initial parameters
-    initial_params = (
+    initial_params = ro.pulses.PulseParams(
         12.4,
         (-0.1,),
         (1.0, -1.0, 2.0, -0.8, 0.7, -0.2, 0.7, 0.3),
@@ -37,10 +37,10 @@ def test_cccz() -> None:
     r = ro.optimization.optimize(gate, pulse, initial_params, num_steps=500, tol=1e-7)
 
     # Compare result to reference
-    ref = (
-        12.42436209,
-        (-0.09580844,),
-        (
+    ref = np.array(
+        [
+            12.42436209,
+            -0.09580844,
             1.01592733,
             -1.00783188,
             2.07969005,
@@ -49,7 +49,6 @@ def test_cccz() -> None:
             -0.16563671,
             0.72792360,
             0.32205233,
-        ),
-        (),
+        ]
     )
-    assert all(np.allclose(x, y, rtol=1e-2) for x, y in zip(r.params, ref))
+    assert np.allclose(np.asarray(r.params), ref, rtol=1e-2)

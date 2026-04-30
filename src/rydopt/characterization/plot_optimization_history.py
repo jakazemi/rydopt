@@ -32,7 +32,7 @@ def plot_optimization_history(
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> initial_params = (7.6, [-0.1], [1.8, -0.6], [])
+        >>> initial_params = ro.pulses.PulseParams(7.6, [-0.1], [1.8, -0.6], [])
         >>> result = ro.optimization.optimize(
         ...     gate,
         ...     pulse,

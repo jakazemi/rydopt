@@ -44,20 +44,21 @@ def test_reproducing_evered() -> None:
     detuning_l = -7.8e3
     detuning_u = -detuning_l - (omega_l**2 - omega_u**2) / (4 * detuning_l)
 
-    initial_params = (
+    initial_params = ro.pulses.PulseParams(
         1.215 * 2 * np.pi / 4.6,
         [detuning_l, detuning_u],
         [2 * np.pi * 0.1122, 1.0431 * 4.6, -0.7318],
         [omega_l, omega_u],
-    )  # duration, detuning, phase, rabi
+    )
 
     # Perform optimization with detunings and  Rabi frequencies fixed
-    fixed_initial_params = (False, [True, True], [False, False, False], [True, True])
+    fixed_initial_params = ro.pulses.PulseParams(False, [True, True], [False, False, False], [True, True])
     result = ro.optimization.optimize(gate, pulse, initial_params, fixed_initial_params, num_steps=200, tol=1e-7)
 
     # Ensure Rydberg population is realized predominantly via the dark state
-    detuning_params = np.array(result.params[1])
-    phase_params = np.array(result.params[2])
+    flat_params = np.asarray(result.params)
+    detuning_params = flat_params[1:3]
+    phase_params = flat_params[3:6]
     detuning_at_beginning = (
         -jax.grad(partial(evered_phase, duration=0.0, ansatz_params=jnp.array(phase_params)))(0.0)
         + detuning_params[0]

@@ -17,7 +17,7 @@ from rydopt.gates.subsystem_hamiltonians_general import (
 )
 from rydopt.protocols import PulseAnsatzLike
 from rydopt.simulation.fidelity import average_gate_fidelity, process_fidelity
-from rydopt.types import FidelityType, HamiltonianFunction, ParamsLike
+from rydopt.types import FidelityType, HamiltonianFunction, ParamsFloatLike
 
 
 class FourQubitGateAsym:
@@ -422,7 +422,7 @@ class FourQubitGateAsym:
 
         return jnp.abs(jnp.vdot(targeted_gate, obtained_gate)) ** 2 / len(targeted_gate) ** 2
 
-    def cost(self, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
+    def cost(self, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7) -> jax.Array:
         """Evaluate the cost function from the configured fidelity metric."""
         if self._fidelity_type == "process":
             return jnp.abs(1 - process_fidelity(self, pulse, params, tol))

@@ -18,14 +18,16 @@ At a high level, every optimization consists of the same three steps.
 
    * :func:`rydopt.optimization.multi_start_optimize`: Multiple random initial pulse parameter guesses are used as starting points for *multiple runs*. The user must specify minimal and maximal values for the initial pulse parameters.
 
-   Pulse parameters are stored as a tuple with four entries:
+   Pulse parameters are typically represented with :class:`PulseParams <rydopt.pulses.PulseParams>` as ``PulseParams(duration, detuning_params, phase_params, rabi_params)``, where the arguments are:
 
    * ``duration``: the gate duration
    * ``detuning_params``: an array of parameters passed to the detuning ansatz
    * ``phase_params``: an array of parameters passed to the phase ansatz
    * ``rabi_params``: an array of parameters passed to the Rabi frequency amplitude ansatz
 
-   To keep parameters fixed during optimization, pass a tuple of boolean masks to the optimizers, indicating which parameters must not be changed. The tuple must match the structure of the pulse-parameter tuple.
+   The optimizers also accept packed parameter arrays wherever a flat representation is more convenient.
+
+   To keep parameters fixed during optimization, pass ``PulseParams(fixed_duration, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``, where ``fixed_[...]`` are boolean masks indicating which parameters must not be changed. The boolean masks must have the same structure as the corresponding parameter arguments.
 
 
 Dimensionless Quantities

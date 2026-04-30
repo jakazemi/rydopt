@@ -6,10 +6,12 @@ import jax
 import jax.numpy as jnp
 
 from rydopt.protocols import Evolvable, PulseAnsatzLike
-from rydopt.types import HamiltonianFunction, ParamsLike
+from rydopt.types import HamiltonianFunction, ParamsFloatLike
 
 
-def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> tuple[jax.Array, ...]:
+def evolve(
+    gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7
+) -> tuple[jax.Array, ...]:
     r"""The function performs the time evolution of all initial states :math:`|\psi_i(0)\rangle` (specified in the gate
     object), under the pulse Hamiltonian :math:`H`.
 
@@ -30,7 +32,7 @@ def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: flo
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> params = (7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
+        >>> params = ro.pulses.PulseParams(7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
         >>> time_evolved_basis_states = ro.simulation.evolve(gate, pulse, params)
 
     Args:
@@ -65,7 +67,7 @@ def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: flo
     # based on the index of the basis state, with padding to max_dim × max_dim.
     def apply_hamiltonian(
         t: float | jax.Array,
-        params: ParamsLike,
+        params: ParamsFloatLike,
         psi: jax.Array,
         hamiltonian: HamiltonianFunction,
         dim: int,
@@ -79,7 +81,7 @@ def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: flo
         for h, d in zip(gate.hamiltonian_functions_for_basis_states(), dims)
     )
 
-    def schroedinger_eq(t: float | jax.Array, psi: jax.Array, args: tuple[ParamsLike, int]) -> jax.Array:
+    def schroedinger_eq(t: float | jax.Array, psi: jax.Array, args: tuple[ParamsFloatLike, int]) -> jax.Array:
         params, idx = args
         return jax.lax.switch(idx, branches, t, params, psi)
 
@@ -116,7 +118,7 @@ def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: flo
 
 
 def _evolve_optimized_for_gpus(
-    gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7
+    gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7
 ) -> tuple[jax.Array, ...]:
     # When we import diffrax, at least one jnp array is allocated (see optimistix/_misc.py, line 138). Thus,
     # if we change the default device after we have imported diffrax, some memory is allocated on the

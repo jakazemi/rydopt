@@ -6,10 +6,10 @@ import jax
 import jax.numpy as jnp
 
 from rydopt.protocols import PulseAnsatzLike, RydbergSystem
-from rydopt.types import HamiltonianFunction, ParamsLike
+from rydopt.types import HamiltonianFunction, ParamsFloatLike
 
 
-def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
+def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7) -> jax.Array:
     r"""The function determines the total time spent in Rydberg states during a gate pulse:
 
     .. math::
@@ -30,7 +30,7 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsLike
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> params = (7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
+        >>> params = ro.pulses.PulseParams(7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
         >>> time_in_rydberg_state = ro.simulation.rydberg_time(gate, pulse, params)
 
     Args:
@@ -60,7 +60,7 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsLike
     # based on the index of the basis state, with padding to max_dim × max_dim.
     def apply_hamiltonian(
         t: float | jax.Array,
-        params: ParamsLike,
+        params: ParamsFloatLike,
         y: tuple[jax.Array, jax.Array],
         hamiltonian: HamiltonianFunction,
         rydberg_operator: jax.Array,
@@ -88,7 +88,7 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsLike
     def schroedinger_eq(
         t: float | jax.Array,
         y: tuple[jax.Array, jax.Array],
-        args: tuple[ParamsLike, int],
+        args: tuple[ParamsFloatLike, int],
     ) -> tuple[jax.Array, jax.Array]:
         params, idx = args
         return jax.lax.switch(idx, branches, t, params, y)

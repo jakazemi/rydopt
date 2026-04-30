@@ -13,7 +13,7 @@ def test_adam() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Initial parameters
-    initial_params = (7.6, [0.1], [1.8, -0.6], [])
+    initial_params = ro.pulses.PulseParams(7.6, [0.1], [1.8, -0.6], [])
 
     # Run optimization
     r = ro.optimization.optimize(
@@ -36,7 +36,7 @@ def test_adam_decay() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Initial parameters
-    initial_params = (7.6, [0.1], [1.8, -0.6], [])
+    initial_params = ro.pulses.PulseParams(7.6, [0.1], [1.8, -0.6], [])
 
     # Run optimization
     r = ro.optimization.optimize(gate, pulse, initial_params, num_steps=200, tol=1e-7)
@@ -57,8 +57,8 @@ def test_multi_start_adam() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.ConstCosCrab(3))
 
     # Parameter bounds for choosing random initial parameters
-    min_initial_params = (6, [-2, -2, -2], [], [])
-    max_initial_params = (9, [2, 2, 2], [], [])
+    min_initial_params = ro.pulses.PulseParams(6, [-2, -2, -2], [], [])
+    max_initial_params = ro.pulses.PulseParams(9, [2, 2, 2], [], [])
 
     # Run optimization
     r = ro.optimization.multi_start_optimize(
@@ -98,8 +98,8 @@ def test_multi_start_adam_decay() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.ConstCosCrab(3))
 
     # Parameter bounds for choosing random initial parameters
-    min_initial_params = (6, [-2, -2, -2], [], [])
-    max_initial_params = (9, [2, 2, 2], [], [])
+    min_initial_params = ro.pulses.PulseParams(6, [-2, -2, -2], [], [])
+    max_initial_params = ro.pulses.PulseParams(9, [2, 2, 2], [], [])
 
     # Run optimization
     r = ro.optimization.multi_start_optimize(
@@ -129,8 +129,8 @@ def test_fastest() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Parameter bounds for choosing random initial parameters
-    min_initial_params = (6, [-2], [-2, -2], [])
-    max_initial_params = (9, [2], [2, 2], [])
+    min_initial_params = ro.pulses.PulseParams(6, [-2], [-2, -2], [])
+    max_initial_params = ro.pulses.PulseParams(9, [2], [2, 2], [])
 
     # Run optimization
     r = ro.optimization.multi_start_optimize(
@@ -162,8 +162,8 @@ def test_fixed() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Initial parameters
-    initial_params = (7.6, [0.0], [1.8, -0.6], [])
-    fixed_initial_params = (False, [True], [False, False], [])
+    initial_params = ro.pulses.PulseParams(7.6, [0.0], [1.8, -0.6], [])
+    fixed_initial_params = ro.pulses.PulseParams(False, [True], [False, False], [])
 
     # Run optimization
     r = ro.optimization.optimize(gate, pulse, initial_params, fixed_initial_params, num_steps=200)
@@ -183,7 +183,7 @@ def test_adam_average_gate_fidelity() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Initial parameters
-    initial_params = (7.6, [0.1], [1.8, -0.6], [])
+    initial_params = ro.pulses.PulseParams(7.6, [0.1], [1.8, -0.6], [])
 
     # Run optimization using average gate fidelity
     r = ro.optimization.optimize(gate, pulse, initial_params, num_steps=200, tol=1e-7)
@@ -192,3 +192,28 @@ def test_adam_average_gate_fidelity() -> None:
     fidelity = ro.simulation.average_gate_fidelity(gate, pulse, r.params)
     assert np.allclose(abs(1 - fidelity), r.infidelity, rtol=1e-12)
     assert np.allclose(fidelity, 1, rtol=1e-7)
+
+
+@pytest.mark.optimization
+def test_optimize_accepts_flat_params_like() -> None:
+    gate = ro.gates.TwoQubitGate(phi=None, theta=np.pi, Vnn=float("inf"), decay=0)
+    pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
+
+    initial_params = [7.6, 0.1, 1.8, -0.6]
+    fixed_initial_params = [False, True, False, False]
+
+    result = ro.optimization.optimize(
+        gate,
+        pulse,
+        initial_params,
+        fixed_initial_params,
+        num_steps=200,
+        tol=1e-7,
+    )
+
+    assert isinstance(result.params, np.ndarray)
+    assert result.params.shape == (4,)
+    assert np.isclose(result.params[1], initial_params[1])
+
+    fidelity = ro.simulation.process_fidelity(gate, pulse, result.params)
+    assert np.allclose(abs(1 - fidelity), result.infidelity, rtol=1e-12)

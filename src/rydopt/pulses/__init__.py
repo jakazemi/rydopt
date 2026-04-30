@@ -21,13 +21,15 @@ from rydopt.pulses.ansatz_functions import (
     SoftBoxSeventhOrderSmoothstep,
 )
 from rydopt.pulses.pulse_ansatz import PulseAnsatz, TwoPhotonPulseAnsatz
-from rydopt.types import FixedParamsLike, ParamsLike
+from rydopt.pulses.pulse_params import PulseParams
+from rydopt.types import ParamsBoolLike, ParamsFloatLike
 
 __all__ = [
     "PulseAnsatz",
     "TwoPhotonPulseAnsatz",
-    "ParamsLike",
-    "FixedParamsLike",
+    "PulseParams",
+    "ParamsFloatLike",
+    "ParamsBoolLike",
     "PulseAnsatzFunction",
     "SinCrab",
     "CosCrab",

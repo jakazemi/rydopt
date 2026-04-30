@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from rydopt.protocols import PulseAnsatzLike
-from rydopt.types import ParamsLike
+from rydopt.types import ParamsFloatLike
 
 
 def plot_pulse(
     pulse: PulseAnsatzLike,
-    params: ParamsLike,
+    params: ParamsFloatLike,
     *,
     plot_detuning: bool = True,
     plot_phase: bool = True,
@@ -29,7 +29,7 @@ def plot_pulse(
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> params = (7.6, [-0.1], [1.8, -0.6], [])
+        >>> params = ro.pulses.PulseParams(7.6, [-0.1], [1.8, -0.6], [])
         >>> ro.characterization.plot_pulse(pulse, params)
         (<Figure ...
 

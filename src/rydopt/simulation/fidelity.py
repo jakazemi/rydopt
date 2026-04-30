@@ -4,10 +4,10 @@ import jax
 
 from rydopt.protocols import GateSystem, PulseAnsatzLike
 from rydopt.simulation.evolve import evolve
-from rydopt.types import ParamsLike
+from rydopt.types import ParamsFloatLike
 
 
-def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
+def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7) -> jax.Array:
     r"""The function provides the process fidelity of the unitary resulting from a gate pulse :math:`U(T)` w.r.t. the
     target unitary :math:`U_{\mathrm{targ}}`:
 
@@ -35,7 +35,7 @@ def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLik
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> params = (7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
+        >>> params = ro.pulses.PulseParams(7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
         >>> fidelity = ro.simulation.process_fidelity(gate, pulse, params)
 
     Args:
@@ -52,7 +52,9 @@ def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLik
     return gate.process_fidelity_helper(final_states)
 
 
-def average_gate_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
+def average_gate_fidelity(
+    gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7
+) -> jax.Array:
     r"""The function provides the average gate fidelity calculated from the process fidelity:
 
     .. math::
@@ -74,7 +76,7 @@ def average_gate_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: Para
         ...     detuning_ansatz=ro.pulses.Const(),
         ...     phase_ansatz=ro.pulses.SinCrab(2),
         ... )
-        >>> params = (7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
+        >>> params = ro.pulses.PulseParams(7.61140652, [0.07842706], [1.80300902, -0.61792703], [])
         >>> fidelity = ro.simulation.average_gate_fidelity(gate, pulse, params)
 
     Args:

@@ -9,10 +9,12 @@ rydopt.pulses
 .. autoclass:: TwoPhotonPulseAnsatz
    :members:
 
-.. py:type:: ParamsLike
+.. autoclass:: PulseParams
+
+.. py:type:: ParamsFloatLike
    :canonical: tuple[float, FloatParamComponent, FloatParamComponent, FloatParamComponent] | FloatParamComponent
 
-   Pulse configuration as either a structured tuple ``(duration, detuning_params, phase_params, rabi_params)``
+   Pulse configuration as either ``PulseParams(duration, detuning_params, phase_params, rabi_params)``
    or a packed parameter array/sequence.
 
    - **duration** - Gate duration
@@ -20,11 +22,10 @@ rydopt.pulses
    - **phase_params** - Parameters for the phase sweep
    - **rabi_params** - Parameters for the Rabi frequency amplitude sweep
 
-.. py:type:: FixedParamsLike
+.. py:type:: ParamsBoolLike
    :canonical: tuple[bool, BoolParamComponent, BoolParamComponent, BoolParamComponent] | BoolParamComponent
 
-   Boolean masks as either a structured tuple
-   ``(fixed_duration, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``
+   Boolean masks as either ``PulseParams(fixed_duration, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``
    or a packed boolean mask array/sequence, marking which pulse parameters are held constant during optimization.
 
    - **fixed_duration** - Whether the gate duration is fixed

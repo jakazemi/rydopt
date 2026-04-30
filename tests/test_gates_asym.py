@@ -22,7 +22,7 @@ def test_two_qubit_gate_asym_vs_symmetric() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(2))
 
     # Optimized parameters from test_cz.py
-    params = (7.61141034, [0.07884777], [1.83253308, -0.61765787], [])
+    params = ro.pulses.PulseParams(7.61141034, [0.07884777], [1.83253308, -0.61765787], [])
 
     f_sym = ro.simulation.process_fidelity(gate_sym, pulse, params)
     f_asym = ro.simulation.process_fidelity(gate_asym, pulse, params)
@@ -65,7 +65,7 @@ def test_three_qubit_gate_asym_vs_isosceles() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(6))
 
     # Optimized parameters from test_ccz.py
-    params = (
+    params = ro.pulses.PulseParams(
         10.99552491,
         (0.20352,),
         (0.43322811, -1.18878954, 1.10057937, -0.70670388, 1.16454156, -0.25082207),
@@ -127,7 +127,7 @@ def test_four_qubit_gate_asym_vs_pyramidal() -> None:
     pulse = ro.pulses.PulseAnsatz(detuning_ansatz=ro.pulses.Const(), phase_ansatz=ro.pulses.SinCrab(8))
 
     # Optimized parameters from test_cccz.py
-    params = (
+    params = ro.pulses.PulseParams(
         12.42436209,
         (0.09580844,),
         (

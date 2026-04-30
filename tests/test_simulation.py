@@ -17,7 +17,7 @@ def test_fidelity_calculation() -> None:
     )
 
     # Parameters
-    params = (7.61141034, [0.078847771], [1.83253308, -0.61765787], [])
+    params = ro.pulses.PulseParams(7.61141034, [0.078847771], [1.83253308, -0.61765787], [])
 
     # Time evolve the system and get the fidelity
     fidelity = ro.simulation.process_fidelity(gate, pulse, params)
@@ -35,7 +35,7 @@ def test_evolution_performance() -> None:
     )
 
     # Parameters
-    params = (7.61141034, [0.078847771], [1.83253308, -0.61765787], [])
+    params = ro.pulses.PulseParams(7.61141034, [0.078847771], [1.83253308, -0.61765787], [])
 
     # Compilation and warmup
     evolve_jit = jax.jit(lambda params: ro.simulation.evolve(gate, pulse, params))
@@ -47,7 +47,7 @@ def test_evolution_performance() -> None:
 
     t0 = time.perf_counter()
     for i in range(num_runs):
-        result = evolve_jit((params[0] + i * 0.001, *params[1:]))
+        result = evolve_jit(ro.pulses.PulseParams(params[0] + i * 0.001, params[1], params[2], params[3]))
         _ = jax.block_until_ready(result)
     t1 = time.perf_counter()
 
