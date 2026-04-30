@@ -6,12 +6,10 @@ import jax
 import jax.numpy as jnp
 
 from rydopt.protocols import Evolvable, PulseAnsatzLike
-from rydopt.types import HamiltonianFunction, PulseParamsLike
+from rydopt.types import HamiltonianFunction, ParamsLike
 
 
-def evolve(
-    gate: Evolvable, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7
-) -> tuple[jax.Array, ...]:
+def evolve(gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> tuple[jax.Array, ...]:
     r"""The function performs the time evolution of all initial states :math:`|\psi_i(0)\rangle` (specified in the gate
     object), under the pulse Hamiltonian :math:`H`.
 
@@ -67,7 +65,7 @@ def evolve(
     # based on the index of the basis state, with padding to max_dim × max_dim.
     def apply_hamiltonian(
         t: float | jax.Array,
-        params: PulseParamsLike,
+        params: ParamsLike,
         psi: jax.Array,
         hamiltonian: HamiltonianFunction,
         dim: int,
@@ -81,7 +79,7 @@ def evolve(
         for h, d in zip(gate.hamiltonian_functions_for_basis_states(), dims)
     )
 
-    def schroedinger_eq(t: float | jax.Array, psi: jax.Array, args: tuple[PulseParamsLike, int]) -> jax.Array:
+    def schroedinger_eq(t: float | jax.Array, psi: jax.Array, args: tuple[ParamsLike, int]) -> jax.Array:
         params, idx = args
         return jax.lax.switch(idx, branches, t, params, psi)
 
@@ -118,7 +116,7 @@ def evolve(
 
 
 def _evolve_optimized_for_gpus(
-    gate: Evolvable, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7
+    gate: Evolvable, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7
 ) -> tuple[jax.Array, ...]:
     # When we import diffrax, at least one jnp array is allocated (see optimistix/_misc.py, line 138). Thus,
     # if we change the default device after we have imported diffrax, some memory is allocated on the

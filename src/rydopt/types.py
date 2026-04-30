@@ -11,15 +11,15 @@ import numpy.typing as npt
 FidelityType = Literal["process", "average_gate"]
 
 FloatParamComponent = Sequence[float] | jax.Array | npt.NDArray[np.float64]
-PulseParamsLike = tuple[float, Unpack[tuple[FloatParamComponent, ...]]] | FloatParamComponent
+ParamsLike = tuple[float, Unpack[tuple[FloatParamComponent, ...]]] | FloatParamComponent
 
 BoolParamComponent = Sequence[bool] | jax.Array | npt.NDArray[np.bool_]
-FixedPulseParamsLike = tuple[bool, Unpack[tuple[BoolParamComponent, ...]]] | BoolParamComponent
+FixedParamsLike = tuple[bool, Unpack[tuple[BoolParamComponent, ...]]] | BoolParamComponent
 
 
 @overload
 def _ravel(
-    params: PulseParamsLike,
+    params: ParamsLike,
     *,
     dtype: Literal["float"],
     backend: Literal["numpy"] = "numpy",
@@ -28,7 +28,7 @@ def _ravel(
 
 @overload
 def _ravel(
-    params: PulseParamsLike,
+    params: ParamsLike,
     *,
     dtype: Literal["float"],
     backend: Literal["jax"],
@@ -37,7 +37,7 @@ def _ravel(
 
 @overload
 def _ravel(
-    params: FixedPulseParamsLike,
+    params: FixedParamsLike,
     *,
     dtype: Literal["bool"],
     backend: Literal["numpy"] = "numpy",
@@ -46,7 +46,7 @@ def _ravel(
 
 @overload
 def _ravel(
-    params: FixedPulseParamsLike,
+    params: FixedParamsLike,
     *,
     dtype: Literal["bool"],
     backend: Literal["jax"],
@@ -54,7 +54,7 @@ def _ravel(
 
 
 def _ravel(
-    params: PulseParamsLike | FixedPulseParamsLike,
+    params: ParamsLike | FixedParamsLike,
     *,
     dtype: Literal["float", "bool"],
     backend: Literal["numpy", "jax"] = "numpy",
@@ -90,7 +90,7 @@ def _unravel(
     *,
     dtype: Literal["float"],
     backend: Literal["numpy"] = "numpy",
-) -> PulseParamsLike: ...
+) -> ParamsLike: ...
 
 
 @overload
@@ -100,7 +100,7 @@ def _unravel(
     *,
     dtype: Literal["float"],
     backend: Literal["jax"],
-) -> PulseParamsLike: ...
+) -> ParamsLike: ...
 
 
 @overload
@@ -110,7 +110,7 @@ def _unravel(
     *,
     dtype: Literal["bool"],
     backend: Literal["numpy"] = "numpy",
-) -> FixedPulseParamsLike: ...
+) -> FixedParamsLike: ...
 
 
 @overload
@@ -120,7 +120,7 @@ def _unravel(
     *,
     dtype: Literal["bool"],
     backend: Literal["jax"],
-) -> FixedPulseParamsLike: ...
+) -> FixedParamsLike: ...
 
 
 def _unravel(
@@ -129,20 +129,20 @@ def _unravel(
     *,
     dtype: Literal["float", "bool"],
     backend: Literal["numpy", "jax"] = "numpy",
-) -> PulseParamsLike | FixedPulseParamsLike:
+) -> ParamsLike | FixedParamsLike:
     if not split_indices:
         return flat
 
     if backend == "jax":
         parts = jnp.split(flat, split_indices, axis=-1)
-        return cast(PulseParamsLike | FixedPulseParamsLike, (parts[0][..., 0], *parts[1:]))
+        return cast(ParamsLike | FixedParamsLike, (parts[0][..., 0], *parts[1:]))
 
     parts = np.split(flat, split_indices, axis=-1)
     first_scalar = np.asarray(parts[0]).reshape(-1)[0]
 
     if dtype == "float":
-        return cast(PulseParamsLike, (float(first_scalar), *parts[1:]))
-    return cast(FixedPulseParamsLike, (bool(first_scalar), *parts[1:]))
+        return cast(ParamsLike, (float(first_scalar), *parts[1:]))
+    return cast(FixedParamsLike, (bool(first_scalar), *parts[1:]))
 
 
 PulseFunction = Callable[[float | jax.Array], jax.Array]

@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from rydopt.protocols import PulseAnsatzLike
-from rydopt.types import PulseParamsLike
+from rydopt.types import ParamsLike
 
 
 def plot_pulse(
     pulse: PulseAnsatzLike,
-    params: PulseParamsLike,
+    params: ParamsLike,
     *,
     plot_detuning: bool = True,
     plot_phase: bool = True,

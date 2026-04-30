@@ -17,7 +17,7 @@ from rydopt.gates.subsystem_hamiltonians import (
 )
 from rydopt.protocols import PulseAnsatzLike
 from rydopt.simulation.fidelity import average_gate_fidelity, process_fidelity
-from rydopt.types import FidelityType, HamiltonianFunction, PulseParamsLike
+from rydopt.types import FidelityType, HamiltonianFunction, ParamsLike
 
 
 class ThreeQubitGateIsosceles:
@@ -223,7 +223,7 @@ class ThreeQubitGateIsosceles:
             jnp.array([1.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j]),
         )
 
-    def process_fidelity(self, final_basis_states: tuple[jax.Array, ...]) -> jax.Array:
+    def process_fidelity_helper(self, final_basis_states: tuple[jax.Array, ...]) -> jax.Array:
         r"""Given the basis states evolved under the pulse,
         this function calculates the fidelity with respect to the gate's target state, specified by the gate angles
         :math:`\phi, \, \theta, \, \ldots`
@@ -297,12 +297,12 @@ class ThreeQubitGateIsosceles:
 
         return jnp.abs(jnp.vdot(targeted_gate, obtained_gate)) ** 2 / len(targeted_gate) ** 2
 
-    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7) -> jax.Array:
-        """Calculate the configured fidelity metric for the given pulse."""
+    def cost(self, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
+        """Evaluate the cost function from the configured fidelity metric."""
         if self._fidelity_type == "process":
-            return process_fidelity(self, pulse, params, tol)
+            return jnp.abs(1 - process_fidelity(self, pulse, params, tol))
         if self._fidelity_type == "average_gate":
-            return average_gate_fidelity(self, pulse, params, tol)
+            return jnp.abs(1 - average_gate_fidelity(self, pulse, params, tol))
         raise ValueError(f"Unsupported fidelity type: {self._fidelity_type}")
 
     def rydberg_time(self, expectation_values_of_basis_states: tuple[jax.Array, ...]) -> jax.Array:

@@ -9,7 +9,7 @@ rydopt.pulses
 .. autoclass:: TwoPhotonPulseAnsatz
    :members:
 
-.. py:type:: PulseParamsLike
+.. py:type:: ParamsLike
    :canonical: tuple[float, FloatParamComponent, FloatParamComponent, FloatParamComponent] | FloatParamComponent
 
    Pulse configuration as either a structured tuple ``(duration, detuning_params, phase_params, rabi_params)``
@@ -20,7 +20,7 @@ rydopt.pulses
    - **phase_params** - Parameters for the phase sweep
    - **rabi_params** - Parameters for the Rabi frequency amplitude sweep
 
-.. py:type:: FixedPulseParamsLike
+.. py:type:: FixedParamsLike
    :canonical: tuple[bool, BoolParamComponent, BoolParamComponent, BoolParamComponent] | BoolParamComponent
 
    Boolean masks as either a structured tuple

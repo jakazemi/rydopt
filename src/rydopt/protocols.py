@@ -5,7 +5,7 @@ from typing import Protocol, runtime_checkable
 import jax
 from typing_extensions import Self
 
-from rydopt.types import HamiltonianFunction, PulseParamsLike
+from rydopt.types import HamiltonianFunction, ParamsLike
 
 
 class Evolvable(Protocol):
@@ -40,10 +40,10 @@ class Evolvable(Protocol):
 
 @runtime_checkable
 class Optimizable(Protocol):
-    """Minimal interface for a system that exposes a pulse fidelity objective."""
+    """Minimal interface for a system that exposes a cost function."""
 
-    def fidelity(self, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float) -> jax.Array:
-        """Calculate the fidelity for the given pulse and parameters."""
+    def cost(self, pulse: PulseAnsatzLike, params: ParamsLike, tol: float) -> jax.Array:
+        """Evaluate the cost function for the given pulse and parameters."""
         ...
 
 
@@ -58,7 +58,7 @@ class GateSystem(Evolvable, Optimizable, Protocol):
     and :func:`rydopt.characterization.analyze_gate_qutip`.
     """
 
-    def process_fidelity(self, final_basis_states: tuple[jax.Array, ...]) -> jax.Array:
+    def process_fidelity_helper(self, final_basis_states: tuple[jax.Array, ...]) -> jax.Array:
         r"""Given the basis states evolved under the pulse,
         this function calculates the fidelity with respect to the gate's target state, specified by the gate angles
         :math:`\phi, \, \theta, \, \ldots`
@@ -132,7 +132,7 @@ class PulseAnsatzLike(Protocol):
     """Minimal interface for pulse ansatz objects used in simulation and optimization."""
 
     def evaluate_pulse_functions(
-        self, t: float | jax.Array, params: PulseParamsLike
+        self, t: float | jax.Array, params: ParamsLike
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
         """Evaluate detuning, phase, and Rabi pulse functions at time samples ``t``."""
         ...

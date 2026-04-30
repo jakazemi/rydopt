@@ -4,10 +4,10 @@ import jax
 
 from rydopt.protocols import GateSystem, PulseAnsatzLike
 from rydopt.simulation.evolve import evolve
-from rydopt.types import PulseParamsLike
+from rydopt.types import ParamsLike
 
 
-def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7) -> jax.Array:
+def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
     r"""The function provides the process fidelity of the unitary resulting from a gate pulse :math:`U(T)` w.r.t. the
     target unitary :math:`U_{\mathrm{targ}}`:
 
@@ -49,12 +49,10 @@ def process_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: PulsePara
 
     """
     final_states = evolve(gate, pulse, params, tol)
-    return gate.process_fidelity(final_states)
+    return gate.process_fidelity_helper(final_states)
 
 
-def average_gate_fidelity(
-    gate: GateSystem, pulse: PulseAnsatzLike, params: PulseParamsLike, tol: float = 1e-7
-) -> jax.Array:
+def average_gate_fidelity(gate: GateSystem, pulse: PulseAnsatzLike, params: ParamsLike, tol: float = 1e-7) -> jax.Array:
     r"""The function provides the average gate fidelity calculated from the process fidelity:
 
     .. math::
