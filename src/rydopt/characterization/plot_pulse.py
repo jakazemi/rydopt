@@ -74,7 +74,6 @@ def plot_pulse(
         ... )
         >>> params = ro.pulses.PulseParams(7.6, [-0.1], [1.8, -0.6], [])
         >>> ro.characterization.plot_pulse(pulse, params)
-        (<Figure ...
 
     Args:
         pulse: Ansatz of the gate pulse.
