@@ -486,9 +486,9 @@ def optimize(
         >>> optimized_params = result.params
 
     Args:
-        gate: RydOpt Gate object
-        pulse: RydOpt PulseAnsatz object
-        initial_params: initial pulse parameters
+        gate: RydOpt Gate or GateFamily object
+        pulse: RydOpt PulseAnsatz or PulseFamilyAnsatz object
+        initial_params: initial pulse (family) parameters
         fixed_initial_params: which parameters shall not be optimized
         num_steps: number of optimization steps
         learning_rate: optimizer learning rate hyperparameter

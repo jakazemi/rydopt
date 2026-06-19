@@ -13,13 +13,19 @@ ParamScalar = TypeVar("ParamScalar", float, bool)
 
 @jax.tree_util.register_pytree_node_class
 class PulseFamilyParams(Sequence[Any], Generic[ParamScalar]):
-    r"""PulseFamily-parameter container.
+    r"""PulseFamily parameter container.
 
-    Stores the pulse family parameter components and their original shapes:
-    ``(duration, detuning_params, phase_params, rabi_params)`` plus ``shapes``.
+    Stores the four pulse-family parameter groups
 
-    Arrays are stored flattened internally; ``shapes`` records the original
-    shapes so they can be restored via :meth:`unflatten`.
+    ``(duration_params, detuning_params, phase_params, rabi_params)``.
+
+    For users, each parameter group is exposed through the corresponding
+    property with its original shape preserved. Internally, all parameter
+    arrays are stored as one-dimensional flattened arrays to support
+    efficient concatenation, JAX transformations, and pytree handling.
+
+    The original array shapes are recorded and used to reconstruct the
+    public parameter views when accessed through the properties.
     """
 
     __slots__ = ("_detuning_params", "_duration_params", "_phase_params", "_rabi_params", "_shapes")

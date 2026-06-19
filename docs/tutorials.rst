@@ -10,3 +10,4 @@ Tutorials
     examples/two_photon
     examples/gpu_acceleration
     examples/user_defined_gate
+    examples/parity_gate_family
