@@ -51,3 +51,17 @@ Rabi frequency, specified by the per-atom scaling factors ``s1``, ``s2``, … .
 
 .. autoclass:: rydopt.gates.FourQubitGateAsym
    :no-members:
+
+Gate Families
+-------------
+
+A :class:`~rydopt.gates.GateFamily` combines several gate systems into a single optimization
+objective. Each gate is associated with a scalar parameter value, and a shared :class:`~rydopt.pulses.PulseFamilyAnsatz`
+is used to generate a pulse for that parameter value.
+
+During optimization, the pulse-family parameters are converted into pulse parameters for each
+parameter value. The infidelity is evaluated independently for every gate system and then
+combined using a reduction operation (``"mean"`` or ``"max"``).
+
+This allows optimizing a single pulse family that performs well across a continuous family of
+target gates rather than optimizing separate pulses for individual gate parameters.

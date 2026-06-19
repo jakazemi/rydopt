@@ -9,26 +9,35 @@ rydopt.pulses
 .. autoclass:: TwoPhotonPulseAnsatz
    :members:
 
+.. autoclass:: PulseFamilyAnsatz
+   :members:
+
 .. autoclass:: PulseParams
 
+.. autoclass:: PulseFamilyParams
+
 .. py:type:: ParamsFloatLike
-   :canonical: tuple[float, FloatParamComponent, FloatParamComponent, FloatParamComponent] | FloatParamComponent
+   :canonical: PulseParams[float] | PulseFamilyParams[float] | Sequence[float] | jax.Array | numpy.ndarray | tuple[jax.Array, jax.Array, jax.Array, jax.Array]
 
-   Pulse configuration as either ``PulseParams(duration, detuning_params, phase_params, rabi_params)``
-   or a packed parameter array/sequence.
+   Pulse configuration as either
+   ``PulseParams(duration, detuning_params, phase_params, rabi_params)``,
+   ``PulseFamilyParams(duration_params, detuning_params, phase_params, rabi_params)``,
+   an unpacked parameter tuple, or a packed parameter array/sequence.
 
-   - **duration** - Gate duration
+   - **duration** / **duration_params** - Gate duration or pulse-family duration parameters
    - **detuning_params** - Parameters for the detuning sweep
    - **phase_params** - Parameters for the phase sweep
    - **rabi_params** - Parameters for the Rabi frequency amplitude sweep
 
 .. py:type:: ParamsBoolLike
-   :canonical: tuple[bool, BoolParamComponent, BoolParamComponent, BoolParamComponent] | BoolParamComponent
+   :canonical: PulseParams[bool] | PulseFamilyParams[bool] | Sequence[bool] | jax.Array | numpy.ndarray
 
-   Boolean masks as either ``PulseParams(fixed_duration, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``
+   Boolean masks as either
+   ``PulseParams(fixed_duration, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``,
+   ``PulseFamilyParams(fixed_duration_params, fixed_detuning_params, fixed_phase_params, fixed_rabi_params)``,
    or a packed boolean mask array/sequence, marking which pulse parameters are held constant during optimization.
 
-   - **fixed_duration** - Whether the gate duration is fixed
+   - **fixed_duration** / **fixed_duration_params** - Whether the duration or duration parameters are fixed
    - **fixed_detuning_params** - Boolean mask of fixed detuning parameters
    - **fixed_phase_params** - Boolean mask of fixed phase parameters
    - **fixed_rabi_params** - Boolean mask of fixed Rabi frequency amplitude parameters

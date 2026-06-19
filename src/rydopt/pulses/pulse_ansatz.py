@@ -109,6 +109,26 @@ class PulseAnsatz:
         return duration[..., 0], detuning_params, phase_params, rabi_params
 
     def unpack_params(self, trainable_params: ParamsFloatLike) -> PulseParams[float]:
+        r"""Convert pulse parameters to a :class:`PulseParams` instance.
+
+        Accepts either a packed parameter vector or an already-unpacked parameter
+        tuple. Packed parameters are interpreted as
+
+        ``(duration, detuning_params, phase_params, rabi_params)``
+
+        with the ansatz parameter blocks having sizes determined by
+        :attr:`param_counts`.
+
+        Args:
+            trainable_params:
+                Pulse parameters in packed or unpacked form.
+
+        Returns:
+            A :class:`PulseParams` object containing the pulse duration and the
+            parameter arrays for the detuning, phase, and Rabi-frequency ansatz
+            functions.
+
+        """
         duration, detuning_params, phase_params, rabi_params = self._unpack_params_arrays(trainable_params)
         return PulseParams(float(duration), detuning_params, phase_params, rabi_params)
 
@@ -262,6 +282,17 @@ class TwoPhotonPulseAnsatz:
         return duration[..., 0], detuning_params, phase_params, rabi_params
 
     def unpack_params(self, trainable_params: ParamsFloatLike) -> PulseParams[float]:
+        r"""Convert packed pulse parameters to a :class:`PulseParams` instance.
+
+        Args:
+            trainable_params:
+                Packed pulse parameters.
+
+        Returns:
+            A :class:`PulseParams` object containing the pulse duration and the
+            packed detuning, phase, and Rabi-frequency parameter arrays.
+
+        """
         duration, detuning_params, phase_params, rabi_params = self._unpack_params_arrays(trainable_params)
         return PulseParams(float(duration), detuning_params, phase_params, rabi_params)
 

@@ -45,7 +45,17 @@ PulseT = TypeVar("PulseT")
 @runtime_checkable
 class Optimizable(Protocol[PulseT]):
     def cost(self, pulse: PulseT, params: ParamsFloatLike, tol: float) -> jax.Array:
-        """Evaluate the cost function for the given pulse and parameters."""
+        """Evaluate the cost function for a pulse ansatz and parameters.
+
+        Args:
+            pulse: Pulse description, typically a :class:`PulseAnsatz` or :class:`PulseFamilyAnsatz`.
+            params: Pulse or pulse-family parameters.
+            tol: Numerical tolerance used when evaluating the cost.
+
+        Returns:
+            Cost function value.
+
+        """
         ...
 
 
@@ -131,7 +141,11 @@ class RydbergSystem(Evolvable, Protocol):
 
 
 class PulseAnsatzLike(Protocol):
-    """Minimal interface for pulse ansatz objects used in simulation and optimization."""
+    r"""Common interface for pulse ansatz and pulse-family ansatz objects.
+
+    Objects implementing this protocol can generate pulse controls from a set of trainable
+    parameters and are accepted by simulation and optimization routines throughout RydOpt.
+    """
 
     def evaluate_pulse_functions(
         self,
@@ -139,12 +153,31 @@ class PulseAnsatzLike(Protocol):
         params: ParamsFloatLike,
         gate_param: float | jax.Array | None = None,
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
-        """Evaluate detuning, phase, and Rabi pulse functions at time samples ``t``."""
+        r"""Evaluate the pulse controls at the specified times.
+
+        Args:
+            t: Time samples at which the pulse controls are evaluated.
+            params: Pulse or pulse-family parameters.
+            gate_param: Gate-family parameter used by pulse-family ansätze. Ignored otherwise.
+
+        Returns:
+            Tuple ``(detuning_1, detuning_r, phase, rabi)``.
+
+        """
         ...
 
     def unpack_params(
         self,
         trainable_params: ParamsFloatLike,
     ) -> PulseParams[float] | PulseFamilyParams[float]:
-        """Unpack pulse parameters and convert them back into their original shapes."""
+        r"""Convert trainable parameters to a structured parameter container.
+
+        Args:
+            trainable_params: Packed or unpacked pulse parameters.
+
+        Returns:
+            A :class:`PulseParams` or :class:`PulseFamilyParams` instance with
+            parameters restored to their original shapes.
+
+        """
         ...

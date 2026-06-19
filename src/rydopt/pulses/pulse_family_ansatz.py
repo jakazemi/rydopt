@@ -132,15 +132,29 @@ class PolynomialPulseMap:
 
 @dataclass
 class PulseFamilyAnsatz:
-    r"""Stores ansatz functions for a pulse family.
+    r"""Data class that stores ansatz functions for a family of laser pulses.
 
-    The parameters of the ansatz functions and the pulse duration are optimized
-    to maximize gate fidelity. Parameters are treated as fixed-degree
-    polynomials in the parametrized target phase of the gate.
+    A pulse family describes a continuous family of gates parameterized by a gate parameter :math:`\phi`
+    (for example, the target phase of a controlled phase gate). Rather than optimizing an independent pulse
+    for each value of :math:`\phi`, the pulse duration and ansatz parameters are represented as functions of
+    :math:`\phi`.
+
+    RydOpt models this dependence through a parameter map. The packed pulse parameters are optimized once
+    and mapped to the pulse duration and ansatz parameters for a specific gate parameter value.
+    By default, :class:`PolynomialPulseMap` represents each pulse parameter as a polynomial of fixed degree
+    in :math:`\phi`.
+
+    For available ansatz functions for the detuning :math:`\Delta(t)`, phase :math:`\xi(t)`,
+    and Rabi frequency :math:`\Omega(t)` sweeps, see below. The function :func:`optimize_family
+    <rydopt.optimization.optimize>` allows optimizing the pulse-family parameters to maximize
+    fidelity across a target gate family. Initial pulse-family parameters can be provided as
+    ``PulseFamilyParams(duration_params, detuning_params, phase_params, rabi_params)``,
+    where each array contains the coefficients used by ``pulse_map`` to construct the corresponding
+    pulse duration or ansatz parameters for a given gate parameter value.
 
     Example:
         >>> import rydopt as ro
-        >>> degrees = [0, 0, 3, 0]
+        >>> degrees = [2, 0, 3, 0]
         >>> num_phase_params = 10
         >>> pulse_map = ro.pulses.PolynomialPulseMap(degrees)
         >>> pulse_family = ro.pulses.PulseFamilyAnsatz(
@@ -150,11 +164,17 @@ class PulseFamilyAnsatz:
         ... )
 
     Attributes:
-        detuning_ansatz: Detuning sweep, default is zero.
-        phase_ansatz: Phase sweep, default is zero.
-        rabi_ansatz: Rabi frequency amplitude sweep, default is one.
-        pulse_map: Map from packed pulse parameters to ansatz parameters given a
-            target phase, default is :class:`PolynomialPulseMap`.
+        detuning_ansatz:
+            Detuning sweep :math:`\Delta(t)`, default is zero.
+        phase_ansatz:
+            Phase sweep :math:`\xi(t)`, default is zero.
+        rabi_ansatz:
+            Rabi frequency amplitude sweep :math:`\Omega(t)`, default is one.
+        pulse_map:
+            Maps optimized pulse-family parameters to the pulse duration and
+            ansatz parameters for a given gate parameter value. The default
+            :class:`PolynomialPulseMap` represents each pulse parameter as a
+            fixed-degree polynomial in the gate parameter.
 
     """
 
@@ -177,6 +197,11 @@ class PulseFamilyAnsatz:
 
     @staticmethod
     def target_phase(gate_param: float | jax.Array | None) -> float | jax.Array:
+        r"""Return the gate-family parameter normalized by :math:`2\pi`.
+
+        The normalized parameter is used as the input to ``pulse_map`` when
+        generating pulse-family parameters.
+        """
         if gate_param is None:
             raise TypeError("Expected gate_param to be a float or jax.Array, got None.")
         return gate_param / (2 * np.pi)
@@ -212,18 +237,29 @@ class PulseFamilyAnsatz:
         )
 
     def unpack_params(self, trainable_params: ParamsFloatLike) -> PulseFamilyParams[float]:
+        r"""Convert pulse-family parameters to a :class:`PulseFamilyParams`.
+
+        Args:
+            trainable_params: Packed or unpacked pulse-family trainable parameters.
+
+        Returns:
+            Pulse-family duration and ansatz parameter coefficients.
+
+        """
         duration, detuning_params, phase_params, rabi_params = self._unpack_params_arrays(trainable_params)
         return PulseFamilyParams(duration, detuning_params, phase_params, rabi_params)
 
     def _generate_pulse_params_arrays(
         self, trainable_params: ParamsFloatLike, gate_param: float | jax.Array | None = None
     ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+        r"""Evaluate ``pulse_map`` and return generated pulse parameter arrays."""
         unpacked = self._unpack_params_arrays(trainable_params)
         return self.pulse_map.map_full(self.target_phase(gate_param), unpacked)
 
     def generate_pulse_params(
         self, trainable_params: ParamsFloatLike, gate_param: float | jax.Array | None = None
     ) -> PulseParams:
+        r"""Generate duration and ansatz parameter arrays for a gate parameter."""
         duration, detuning_params, phase_params, rabi_params = self._generate_pulse_params_arrays(
             trainable_params, gate_param
         )
@@ -232,6 +268,7 @@ class PulseFamilyAnsatz:
     def generate_duration(
         self, trainable_params: ParamsFloatLike, gate_param: float | jax.Array | None = None
     ) -> float | jax.Array:
+        r"""Generate the pulse duration for a given gate parameter."""
         unpacked = self._unpack_params_arrays(trainable_params)
         return self.pulse_map.map_duration(self.target_phase(gate_param), unpacked)
 
@@ -267,6 +304,7 @@ class PulseFamilyAnsatz:
         )
 
     def generate_pulse_ansatz(self, gate_param: float | jax.Array | None = None) -> PulseAnsatzLike:
+        r"""Generate the pulse ansatz corresponding to a given gate parameter."""
         return BoundPulseAnsatz(self, gate_param=gate_param)
 
 
