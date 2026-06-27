@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 from rydopt.protocols import PulseAnsatzLike, RydbergSystem
-from rydopt.types import HamiltonianFunction, ParamsFloatLike
+from rydopt.types import HamiltonianFunction, ParamsFloatLike, TimeLike
 
 
 def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsFloatLike, tol: float = 1e-7) -> jax.Array:
@@ -59,14 +59,14 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsFloa
     # Schrödinger equation for the basis states. The Hamiltonian is chosen via lax.switch
     # based on the index of the basis state, with padding to max_dim × max_dim.
     def apply_hamiltonian(
-        t: float | jax.Array,
+        t: TimeLike,
         params: ParamsFloatLike,
         y: tuple[jax.Array, jax.Array],
         hamiltonian: HamiltonianFunction,
         rydberg_operator: jax.Array,
         dim: int,
     ) -> tuple[jax.Array, jax.Array]:
-        values = pulse.evaluate_pulse_functions(t, params)
+        values = pulse.evaluate_pulse_functions(jnp.asarray(t), params)
         psi, _expectation = y
         psi_small = psi[:dim]
         dpsi_small = -1j * hamiltonian(*values) @ psi_small
@@ -86,7 +86,7 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsFloa
     )
 
     def schroedinger_eq(
-        t: float | jax.Array,
+        t: TimeLike,
         y: tuple[jax.Array, jax.Array],
         args: tuple[ParamsFloatLike, int],
     ) -> tuple[jax.Array, jax.Array]:
@@ -94,7 +94,7 @@ def rydberg_time(gate: RydbergSystem, pulse: PulseAnsatzLike, params: ParamsFloa
         return jax.lax.switch(idx, branches, t, params, y)
 
     # Propagator
-    term = diffrax.ODETerm(schroedinger_eq)  # ty: ignore[invalid-argument-type]
+    term = diffrax.ODETerm(schroedinger_eq)
     solver = diffrax.Tsit5()
     stepsize_controller = diffrax.PIDController(rtol=0.1 * tol, atol=0.1 * tol)
     saveat = diffrax.SaveAt(t1=True)

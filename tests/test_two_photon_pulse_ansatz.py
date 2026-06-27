@@ -109,7 +109,7 @@ def test_average_gate_fidelity_qutip_comparison() -> None:
         # Single-atom Hamiltonian
         t_grid = np.linspace(0, duration, 1000)
         xi_vals = np.array(ro.pulses.SinCrab(2)(jnp.array(t_grid), jnp.asarray(duration), phase_params_jnp))
-        xi_func = interp1d(t_grid, xi_vals, kind="cubic", fill_value="extrapolate")  # ty: ignore[invalid-argument-type]
+        xi_func = interp1d(t_grid, xi_vals, kind="cubic", fill_value="extrapolate")
 
         def coeff_m(t: float, args: None = None) -> complex:
             return np.exp(-1j * xi_func(float(t)))

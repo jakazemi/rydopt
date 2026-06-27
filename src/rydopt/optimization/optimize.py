@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 
 from rydopt.protocols import Optimizable, PulseAnsatzLike
 from rydopt.pulses import PulseFamilyParams, PulseParams
-from rydopt.types import DurationLike, ParamsBoolLike, ParamsFloatLike
+from rydopt.types import ParamsBoolLike, ParamsFloatLike, TimeLike
 
 tqdm.monitor_interval = 0
 
@@ -48,7 +48,7 @@ class OptimizationResult(Generic[ParamsType, ValueType, HistoryType]):
 
     params: ParamsType
     infidelity: ValueType
-    duration: DurationLike
+    duration: TimeLike
     infidelity_history: HistoryType
     duration_history: HistoryType
     grad_norm_history: HistoryType

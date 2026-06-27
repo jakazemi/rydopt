@@ -55,7 +55,7 @@ class PulseAnsatzFunction(ABC):
                 )
             return call(self, t, duration, validated_params)
 
-        cls.__call__ = validated_call  # ty: ignore[invalid-assignment]
+        type.__setattr__(cls, "__call__", validated_call)
 
     def __init__(self, num_params: int) -> None:
         self._num_params = num_params
