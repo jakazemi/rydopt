@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 from rydopt.protocols import Evolvable, PulseAnsatzLike
-from rydopt.types import HamiltonianFunction, ParamsFloatLike
+from rydopt.types import HamiltonianFunction, ParamsFloatLike, TimeLike
 
 
 def evolve(
@@ -66,13 +66,13 @@ def evolve(
     # Schrödinger equation for the basis states. The Hamiltonian is chosen via lax.switch
     # based on the index of the basis state, with padding to max_dim × max_dim.
     def apply_hamiltonian(
-        t: float | jax.Array,
+        t: TimeLike,
         params: ParamsFloatLike,
         psi: jax.Array,
         hamiltonian: HamiltonianFunction,
         dim: int,
     ) -> jax.Array:
-        values = pulse.evaluate_pulse_functions(t, params)
+        values = pulse.evaluate_pulse_functions(jnp.asarray(t), params)
         dpsi_small = -1j * hamiltonian(*values) @ psi[:dim]
         return jnp.pad(dpsi_small, (0, psi.shape[0] - dim))
 
@@ -81,12 +81,12 @@ def evolve(
         for h, d in zip(gate.hamiltonian_functions_for_basis_states(), dims)
     )
 
-    def schroedinger_eq(t: float | jax.Array, psi: jax.Array, args: tuple[ParamsFloatLike, int]) -> jax.Array:
+    def schroedinger_eq(t: TimeLike, psi: jax.Array, args: tuple[ParamsFloatLike, int]) -> jax.Array:
         params, idx = args
         return jax.lax.switch(idx, branches, t, params, psi)
 
     # Propagator
-    term = diffrax.ODETerm(schroedinger_eq)  # ty: ignore[invalid-argument-type]
+    term = diffrax.ODETerm(schroedinger_eq)
     solver = diffrax.Tsit5()
     stepsize_controller = diffrax.PIDController(rtol=0.1 * tol, atol=0.1 * tol)
     saveat = diffrax.SaveAt(t1=True)
@@ -126,11 +126,11 @@ def _evolve_optimized_for_gpus(
     import diffrax
 
     def schroedinger_eq(
-        t: float | jax.Array,
+        t: TimeLike,
         psi_tuple: tuple[jax.Array, ...],
         _: object,
     ) -> tuple[jax.Array, ...]:
-        values = pulse.evaluate_pulse_functions(t, params)
+        values = pulse.evaluate_pulse_functions(jnp.asarray(t), params)
         return tuple(
             -1j * (h(*values) @ psi) for h, psi in zip(gate.hamiltonian_functions_for_basis_states(), psi_tuple)
         )
@@ -138,7 +138,7 @@ def _evolve_optimized_for_gpus(
     solver = diffrax.Dopri8()
     stepsize_controller = diffrax.PIDController(rtol=0.1 * tol, atol=0.1 * tol)
     saveat = diffrax.SaveAt(t1=True)
-    term = diffrax.ODETerm(schroedinger_eq)  # ty: ignore[invalid-argument-type]
+    term = diffrax.ODETerm(schroedinger_eq)
 
     sol = diffrax.diffeqsolve(
         term,

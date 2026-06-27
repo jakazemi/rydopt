@@ -39,4 +39,4 @@ PulseFunction = Callable[[float | jax.Array], jax.Array]
 
 HamiltonianFunction = Callable[[float | jax.Array, float | jax.Array, float | jax.Array, float | jax.Array], jax.Array]
 
-DurationLike = float | npt.NDArray[np.float64] | jax.Array
+TimeLike = float | jax.Array | npt.NDArray[np.float64]
