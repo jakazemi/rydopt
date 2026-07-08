@@ -380,12 +380,20 @@ class PulseFamilyAnsatz:
         return self.pulse_map.map_full(self.target_parameter(gate_param), unpacked)
 
     def generate_pulse_params(
-        self, trainable_params: ParamsFloatLike, gate_param: float | jax.Array | None = None
+        self,
+        trainable_params: ParamsFloatLike,
+        gate_param: float | jax.Array | None = None,
+        *,
+        key=None,
+        sigma=0.0,
     ) -> PulseParams:
         r"""Generate duration and ansatz parameter arrays for a gate parameter."""
         duration, detuning_params, phase_params, rabi_params = self._generate_pulse_params_arrays(
             trainable_params, gate_param
         )
+        if key is not None:
+            noise = sigma * jax.random.normal(key)
+            rabi_params = rabi_params.at[0].add(noise)
         return PulseParams(duration, detuning_params, phase_params, rabi_params)
 
     def generate_duration(

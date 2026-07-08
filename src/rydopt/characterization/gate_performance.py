@@ -49,8 +49,8 @@ def analyze_gate(
     infidelity = float(1 - process_fidelity(gate, pulse, params, tol=tol))
 
     if isinstance(gate, RydbergSystem):
-        gate_nodecay = gate.with_decay(0.0)
-        assert isinstance(gate_nodecay, GateSystem)
+        gate_nodecay = gate.replace(decay=0.0)
+        # assert isinstance(gate_nodecay, GateSystem)
 
         infidelity_nodecay = float(1 - process_fidelity(gate_nodecay, pulse, params, tol=tol))
         ryd_time = float(rydberg_time(gate_nodecay, pulse, params, tol=tol))
@@ -98,7 +98,7 @@ def analyze_gate_qutip(
     infidelity = 1 - process_fidelity_qutip(gate, pulse, params, normalize=not isinstance(gate, RydbergSystem))
 
     if isinstance(gate, RydbergSystem):
-        gate_nodecay = gate.with_decay(0.0)
+        gate_nodecay = gate.replace(decay=0.0)
         assert isinstance(gate_nodecay, GateSystem)
 
         infidelity_nodecay = 1 - process_fidelity_qutip(gate_nodecay, pulse, params, normalize=True)

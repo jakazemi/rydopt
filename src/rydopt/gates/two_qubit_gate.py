@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from copy import deepcopy
+from collections.abc import Hashable
 from functools import partial
 from math import isinf
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -60,19 +61,46 @@ class TwoQubitGate:
         self._decay = decay
         self._fidelity_type = fidelity_type
 
-    def with_decay(self, decay: float) -> Self:
-        r"""Creates a copy of the gate with a new decay strength.
+    def replace(self, **kwargs: Any) -> Self:
+        r"""Return a cheap copy of the gate with selected parameters replaced.
 
-        Args:
-            decay: New decay strength :math:`\gamma/\Omega_0`.
+        Unlike the old `with_decay`, this avoids `deepcopy`: since all fields
+        are either immutable Python scalars/None or JAX arrays/tracers (never
+        mutated in place), a shallow reconstruction is sufficient and much
+        cheaper, especially when called from inside a jax.vmap trace.
 
-        Returns:
-            A copy of the gate object with the new decay strength.
+        Examples
+        --------
+        >>> gate2 = gate.replace(decay=1e-4)
+        >>> gate3 = gate.replace(theta=jnp.pi)
 
         """
-        new = deepcopy(self)
-        new._decay = decay
+        valid_keys = {"phi", "theta", "Vnn", "decay", "fidelity_type"}
+        unknown = set(kwargs) - valid_keys
+        if unknown:
+            raise ValueError(f"Unknown parameter(s): {sorted(unknown)}")
+
+        new = object.__new__(type(self))
+        new._phi = kwargs.get("phi", self._phi)
+        new._theta = kwargs.get("theta", self._theta)
+        new._Vnn = kwargs.get("Vnn", self._Vnn)
+        new._decay = kwargs.get("decay", self._decay)
+        new._fidelity_type = kwargs.get("fidelity_type", self._fidelity_type)
         return new
+
+    def group_key(self) -> Hashable:
+        r"""Static, hashable summary of everything about this gate that drives
+        Python-level control flow (branches on isinf/is None/string dispatch).
+        Gates with equal group_key() can be safely batched together via vmap.
+        """
+        return (float(self._Vnn), float(self._decay), self._fidelity_type, self._phi is None, self._theta is None)
+
+    def control_flow_keys(self) -> frozenset[str]:
+        return frozenset({"Vnn", "decay", "fidelity_type"})
+
+    def none_sensitive_keys(self) -> frozenset[str]:
+        """Keys whose None-ness (not numeric value) affects control flow."""
+        return frozenset({"phi", "theta"})
 
     def dim(self) -> int:
         r"""Hilbert space dimension.

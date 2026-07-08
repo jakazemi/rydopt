@@ -92,6 +92,23 @@ class GateSystem(Evolvable, Optimizable, Protocol):
         """
         ...
 
+    # def cost(self, pulse: EvaluatablePulseAnsatz, params: ParamsFloatLike, tol: float) -> jax.Array: ...
+    #
+    # def group_key(self) -> Hashable:
+    #     """Static, hashable summary of everything driving Python-level control flow."""
+    #     ...
+    #
+    # def replace(self, **kwargs: Any) -> Self:
+    #     """Cheap (non-deepcopy) reconstruction with given params overridden."""
+    #     ...
+    #
+    # def control_flow_keys(self) -> frozenset[str]:
+    #     """Names of constructor/replace() keys whose value affects Python-level
+    #     control flow (branches, isinf/is None checks, string dispatch, etc).
+    #     Any FamilyMember varying one of these relative to the prototype forces
+    #     that member into its own vmap group."""
+    #     ...
+
 
 @runtime_checkable
 class RydbergSystem(Evolvable, Protocol):

@@ -28,10 +28,19 @@ def _evaluate_pulse(
 
     values = np.array(pulse.evaluate_pulse_functions(times, params))
     values[1] -= values[0]
-    values = values[1:][selector]
-
+    values[2] /= np.pi
     if subtract_phase_offset:
-        values[1] -= values[1][0]
+        values[2] -= values[2][0]
+        # costs = jnp.stack(
+        #     [
+        #         gate.cost(
+        #             pulse_ansatz,
+        #             pulse.generate_pulse_params(
+        #                 params, pv, key=jax.random.key(count)), tol)
+        #         for count, (gate, pv) in enumerate(zip(self.gates, self.parameter_values))
+        #     ]
+        # )
+    values = values[1:][selector]
 
     labels = np.array(
         [
@@ -45,7 +54,7 @@ def _evaluate_pulse(
         np.array(
             [
                 r"$\Delta / \Omega_0$",
-                r"$\xi$ [rad]",
+                r"$\xi / \pi$",
                 r"$\Omega / \Omega_0$",
             ]
         )[selector]
@@ -119,6 +128,7 @@ def plot_pulse(
         ax.set_xmargin(0)
         ax.set_xlabel(r"$t \Omega_0$")
         ax.set_ylabel(ylabel)
+        ax.tick_params(which="both", direction="in")
         ax.grid(alpha=0.3)
         if len(labels) > 1:
             ax.legend()
@@ -166,7 +176,7 @@ def plot_pulse_family(
         assert ax is not None
         fig = cast(plt.Figure, ax.figure)
 
-    gate_params = np.asarray(gate_family.parameter_values)
+    gate_params = np.asarray([member.interpolation_parameter for member in gate_family.family_members]) / np.pi
 
     cmap = plt.colormaps["turbo"]
     norm = mpl.colors.Normalize(
@@ -175,7 +185,7 @@ def plot_pulse_family(
     )
     colors = cmap(norm(gate_params))
 
-    linestyles = ["-", "--", ":"]
+    linestyles = ["--", "-", ":"]
     ylabel = ""
     labels: list[str] = []
 
@@ -211,11 +221,12 @@ def plot_pulse_family(
         ax.set_xmargin(0)
         ax.set_xlabel(r"$t \Omega_0$")
         ax.set_ylabel(ylabel)
-        ax.grid(alpha=0.3)
+        ax.tick_params(which="both", direction="in")
         if len(labels) > 1:
             ax.legend()
         sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-        fig.colorbar(sm, ax=ax, label="Target parameter")
+        # fig.colorbar(sm, ax=ax, label="Target parameter")
+        fig.colorbar(sm, ax=ax, label=r"Target phase $\times \pi^{-1}$")
         fig.tight_layout()
 
     return fig, ax, cmap, norm

@@ -1,6 +1,7 @@
 import math
-from collections.abc import Sequence
-from typing import Literal
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any, Literal
 
 import jax
 import jax.numpy as jnp
@@ -9,6 +10,22 @@ from jax.scipy.special import logsumexp
 from rydopt.protocols import GateSystem
 from rydopt.pulses import PulseFamilyAnsatz
 from rydopt.types import ParamsFloatLike
+
+
+def _hashable(value):
+    if isinstance(value, (list, tuple)):
+        return tuple(value)
+    try:
+        hash(value)
+        return value
+    except TypeError:
+        return str(value)
+
+
+@dataclass(frozen=True)
+class FamilyMember:
+    interpolation_parameter: Any
+    gate_parameters: Mapping[str, Any]
 
 
 class GateFamily:
@@ -37,9 +54,8 @@ class GateFamily:
         ... )
 
     Args:
-        fixed_parameter_gates: Sequence of gate instances defining the physical systems.
-        parameter_values: Sequence of scalar parameters (same length as `fixed_parameter_gates`)
-            that controls the pulse family parametrization.
+        prototype_gate: A gate instance defining the physical system.
+        family_members: Sequence of FamilyMember instances.
         reduction: Reduction operation applied to the per-gate infidelities.
             One of {"mean", "max", "softmax"}.
         softmax_scale: Non-negative scale parameter used only when `reduction="softmax"`.
@@ -51,17 +67,17 @@ class GateFamily:
 
     def __init__(
         self,
-        fixed_parameter_gates: Sequence[GateSystem],
-        parameter_values: Sequence[float] | jax.Array,
+        prototype_gate: GateSystem,
+        family_members: Sequence[FamilyMember],
         reduction: Literal["mean", "max", "softmax"] = "mean",
         softmax_scale: float | None = None,
     ) -> None:
-        if len(fixed_parameter_gates) != len(parameter_values):
-            raise ValueError("fixed_parameter_gates and parameter_values must have the same length.")
+        if len(family_members) == 0:
+            raise ValueError("family_members cannot be empty.")
 
-        self.gates = list(fixed_parameter_gates)
-        self.parameter_values = [float(p) for p in parameter_values]
-        self._num_gates = len(fixed_parameter_gates)
+        self.prototype_gate = prototype_gate
+        self.family_members = list(family_members)
+        self._num_gates = len(family_members)
 
         if reduction == "mean":
             if softmax_scale is not None:
@@ -78,6 +94,48 @@ class GateFamily:
         else:
             raise ValueError("Invalid reduction, must be 'mean', 'max', or 'softmax'.")
 
+        control_flow_keys = prototype_gate.control_flow_keys()
+        none_sensitive_keys = prototype_gate.none_sensitive_keys()
+
+        def cf_signature(member: FamilyMember) -> tuple:
+            sig = []
+            for key in sorted(control_flow_keys):
+                value = member.gate_parameters.get(key, "<prototype>")
+                sig.append((key, value if value == "<prototype>" else _hashable(value)))
+            for key in sorted(none_sensitive_keys):
+                value = member.gate_parameters.get(key, getattr(prototype_gate, f"_{key}"))
+                sig.append((key, value is None))
+            return tuple(sig)
+
+        groups: dict[tuple, list[int]] = {}
+        for i, member in enumerate(self.family_members):
+            groups.setdefault(cf_signature(member), []).append(i)
+
+        self._groups = []
+        for indices in groups.values():
+            rep_member = self.family_members[indices[0]]
+            base_kwargs = {k: v for k, v in rep_member.gate_parameters.items() if k in control_flow_keys}
+            base_gate = prototype_gate.replace(**base_kwargs)
+
+            dynamic_keys = [k for k in rep_member.gate_parameters.keys() if k not in control_flow_keys]
+            stacked_dynamic = {
+                key: jnp.stack([jnp.asarray(self.family_members[i].gate_parameters[key]) for i in indices])
+                for key in dynamic_keys
+            }
+            interp_params = jax.tree_util.tree_map(
+                lambda *xs: jnp.stack(xs),
+                *[self.family_members[i].interpolation_parameter for i in indices],
+            )
+
+            self._groups.append(
+                dict(
+                    indices=jnp.asarray(indices),
+                    base_gate=base_gate,
+                    stacked_dynamic=stacked_dynamic,
+                    interp_params=interp_params,
+                )
+            )
+
     def cost(self, pulse: PulseFamilyAnsatz, params: ParamsFloatLike, tol: float) -> jax.Array:
         """Compute reduced infidelity over all fixed-target-parameter gates defined within the
         gate family.
@@ -92,16 +150,21 @@ class GateFamily:
 
         """
         pulse_ansatz = pulse.pulse_ansatz
-        costs = jnp.stack(
-            [
-                gate.cost(pulse_ansatz, pulse.generate_pulse_params(params, pv), tol)
-                for gate, pv in zip(self.gates, self.parameter_values)
-            ]
-        )
+        all_costs = jnp.zeros(self._num_gates)
+
+        for group in self._groups:
+            base_gate = group["base_gate"]
+
+            def single_cost(interp_param, dynamic_vals):
+                gate = base_gate.replace(**dynamic_vals) if dynamic_vals else base_gate
+                pulse_params = pulse.generate_pulse_params(params, interp_param)
+                return gate.cost(pulse_ansatz, pulse_params, tol)
+
+            group_costs = jax.vmap(single_cost, in_axes=(0, 0))(group["interp_params"], group["stacked_dynamic"])
+            all_costs = all_costs.at[group["indices"]].set(group_costs)
+
         if self.reduction == 0.0:
-            return jnp.max(costs)
-
+            return jnp.max(all_costs)
         if math.isinf(self.reduction):
-            return jnp.mean(costs)
-
-        return self.reduction * (logsumexp(costs / self.reduction) - math.log(self._num_gates))
+            return jnp.mean(all_costs)
+        return self.reduction * (logsumexp(all_costs / self.reduction) - math.log(self._num_gates))
